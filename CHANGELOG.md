@@ -18,6 +18,8 @@ which still covers the gates. This repo's history begins at the extraction.
 
 ## Unreleased
 
+## v5.1.0 — 2026-09-09
+
 MINOR. Two new steps in existing skills, and both are about a ticket telling
 the truth about itself while the work is happening rather than afterwards.
 
