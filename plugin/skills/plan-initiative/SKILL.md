@@ -1,6 +1,6 @@
 ---
 name: plan-initiative
-description: Plan every ticket in an initiative, one at a time and in build order, by running refine-ticket over each of them with the initiative's context injected — where this ticket sits in the sequence, what comes before and after it, and every decision already settled. Use this once an initiative has started building and its tickets exist, when someone wants the whole initiative planned, made ready, starred, or "taken from a list of titles to something the team can pick up". Finishes only when every plannable ticket in the initiative carries both an implementation plan and a QA plan.
+description: Plan every ticket in an initiative, one at a time and in build order, by running plan-ticket over each of them with the initiative's context injected — where this ticket sits in the sequence, what comes before and after it, and every decision already settled. Use this once an initiative has started building and its tickets exist, when someone wants the whole initiative planned, made ready, starred, or "taken from a list of titles to something the team can pick up". Finishes only when every plannable ticket in the initiative carries both an implementation plan and a QA plan.
 argument-hint: [initiative key, e.g. CM-00007]
 allowed-tools: Bash Read Grep Glob Skill AskUserQuestion mcp__abacus__get_ticket mcp__abacus__add_comment mcp__abacus__list_boards mcp__abacus__list_tickets
 ---
@@ -8,9 +8,9 @@ allowed-tools: Bash Read Grep Glob Skill AskUserQuestion mcp__abacus__get_ticket
 Plan every ticket under the initiative in "$ARGUMENTS", one at a time, until
 the whole initiative is ready to pick up.
 
-Each ticket is planned by `/colormath:refine-ticket`, which already knows how
-to groom one. **This skill exists for what that one cannot see**: the ticket's
-place in a sequence. Run seven times by hand, `refine-ticket` grooms seven
+Each ticket is planned by `/colormath:plan-ticket`, which already knows how to
+plan one. **This skill exists for what that one cannot see**: the ticket's
+place in a sequence. Run seven times by hand, `plan-ticket` plans seven
 strangers — it re-derives the same background from scratch each time, asks the
 same question seven times, and produces seven plans that each make locally
 sensible choices that contradict each other at the seams. Run from here, each
@@ -27,16 +27,16 @@ that is a title fragment rather than a key, find it with `list_boards` then
 `list_tickets` and confirm which one you landed on.
 
 **Check `type` is `initiative`.** If it is an ordinary ticket, this is the wrong
-skill — one ticket is `/colormath:refine-ticket`, and say so.
+skill — one ticket is `/colormath:plan-ticket`, and say so.
 
 **Check it has tickets.** The children are in `get_ticket`'s response; the board
 tools hide them. If there are none:
 
 - `initiative_status` is `designing` — **the tickets have not been cut yet.**
   They are created when a human starts building, one per feature definition. Say
-  that, point at `/colormath:refine-initiative` if the features themselves still
-  need work, and stop. Do not start building to unblock yourself: it is one-way,
-  it locks the feature list, and it is a person's decision.
+  that, point at `/colormath:gather-requirements` if the features themselves
+  still need work, and stop. Do not start building to unblock yourself: it is
+  one-way, it locks the feature list, and it is a person's decision.
 - `building` with no children — somebody removed them, or the initiative was
   built with no features. Report it rather than guessing.
 
@@ -65,6 +65,14 @@ Two kinds of child are **not plannable, and are not failures**:
 - **initiatives** — nothing nests that deep here; report it as odd rather than
   recursing.
 
+Note as you go which children have a **description thin enough that planning
+against it would be guesswork**. A ticket cut from a feature definition
+inherits that definition's words, which are usually enough — but not always,
+and `plan-ticket` will hand one back rather than invent the missing half.
+Those need `/colormath:gather-requirements` first, which is a separate,
+question-heavy session; flag them in the run you show below rather than
+discovering it seven tickets in.
+
 Now show the user the run before spending their attention on it: the
 initiative, the ordered list, which are already planned, which are skippable,
 and how many will therefore need grooming — **and that each one may ask them
@@ -74,7 +82,7 @@ want a subset, plan that subset in order and report the rest as untouched.
 
 ## 3. Plan each ticket, with its place in the sequence
 
-For each ticket that needs it, in order, invoke `/colormath:refine-ticket` with
+For each ticket that needs it, in order, invoke `/colormath:plan-ticket` with
 the key **first** — that is what it resolves on — followed by the context it
 cannot get on its own. Keep the context compact and factual:
 
@@ -92,9 +100,15 @@ cannot get on its own. Keep the context compact and factual:
   initiative's own words for this piece are usually sharper than the ticket
   title cut from them.
 
-Then let `refine-ticket` do its job. Do not pre-empt it: no drafting the plan
-yourself and asking it to rubber-stamp, no forbidding it from asking questions.
-It investigates the code and interviews the user, and both are the point.
+Then let `plan-ticket` do its job. Do not pre-empt it: no drafting the plan
+yourself and asking it to rubber-stamp, no forbidding it from asking the few
+questions it does ask. Its code pass is the point, and the context you injected
+is what keeps its questions from repeating.
+
+**If it hands one back as ungathered**, that is a real answer, not a failure to
+work around. Record the ticket as unfinished with that reason, tell the user it
+needs `/colormath:gather-requirements`, and carry on down the list — the rest
+of the initiative does not have to wait for it.
 
 **Carry the answers forward.** When it finishes, note what was decided —
 especially anything the user answered that will recur, and anything the plan
@@ -139,9 +153,9 @@ without opening seven tickets.
 
 - **Build order, one at a time.** Never plan them in parallel or out of order:
   the whole value is that ticket N knows what N−1 decided.
-- **Inject context every time.** A `refine-ticket` call from here that carries
+- **Inject context every time.** A `plan-ticket` call from here that carries
   only a key has thrown away the reason this skill exists.
-- **Don't do refine-ticket's job.** No drafting plans yourself, no suppressing
+- **Don't do plan-ticket's job.** No drafting plans yourself, no suppressing
   its questions, no writing `plan` or `qa_plan` directly — this skill holds no
   `update_ticket` tool for exactly that reason.
 - **Planned means both fields are set.** Verify by reading them back. The

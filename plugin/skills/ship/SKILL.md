@@ -167,7 +167,7 @@ changed and why, and execute the amended version. The `qa_plan` field stays the
 record of what was intended; comments are the record of what happened.
 
 **b. The ticket has no `qa_plan`.** Write one, then execute it. Draft it from
-the diff the way `refine-ticket` would — concrete, independently checkable
+the diff the way `plan-ticket` would — concrete, independently checkable
 items naming real routes, roles and expected results, not generic boilerplate;
 cover the authorization tiers the change touches, and say plainly what CI
 already covers so you don't re-test it. Write it to the ticket's `qa_plan` field

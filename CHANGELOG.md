@@ -18,6 +18,76 @@ which still covers the gates. This repo's history begins at the extraction.
 
 ## Unreleased
 
+MAJOR. **Grooming splits into two skills.** `/colormath:refine-ticket` and
+`/colormath:refine-initiative` are gone, replaced by
+`/colormath:gather-requirements` and `/colormath:plan-ticket`. Skill renames
+are MAJOR because nothing pins this repo — a merge here reaches every install
+on its next `/plugin` update, and anything naming the old commands (a runbook,
+a board column, a bookmark) stops resolving at that moment.
+
+### Removed
+
+- **`/colormath:refine-ticket`** — its work is now done by two skills. The
+  description half is `gather-requirements`; the plan half is `plan-ticket`.
+- **`/colormath:refine-initiative`** — folded whole into
+  `gather-requirements`, which branches on ticket `type` and writes feature
+  definitions when it is handed an initiative.
+
+### Added
+
+- **`/colormath:gather-requirements`** — settles *what is being asked for*, for
+  a ticket **or** an initiative. Reads it, investigates the code and the
+  decision records, interviews until the picture is complete, then writes back
+  a description that stands on its own — plus, on an initiative, its feature
+  definitions. It **never writes `plan` or `qa_plan`**.
+
+  It is also, for the first time, the *complete* grooming path for a **task**.
+  `refine-ticket` handled a task badly: it was built to produce plans, and
+  Abacus refuses to write one on a task at all.
+
+- **`/colormath:plan-ticket`** — settles *how it gets built*. Takes a ticket
+  whose requirements are already gathered, investigates the code at
+  file-and-line level, settles the few implementation forks the requirements
+  left open, then writes back a file-anchored implementation plan and an
+  executable QA plan. It **never writes `description`**; on an initiative or a
+  task it stops and says which skill is the right one.
+
+### Changed
+
+- **The split is the contract.** `gather-requirements` owns `description` (and
+  an initiative's features); `plan-ticket` owns `plan` and `qa_plan`. Neither
+  writes the other's fields, so the requirements a plan is built on were
+  settled and read by somebody before the plan existed. `plan-ticket` hands a
+  thinly-described ticket back rather than inventing the missing half.
+
+- **`/colormath:plan-initiative`** now loops `plan-ticket` rather than
+  `refine-ticket`, points a `designing` initiative at `gather-requirements`,
+  and flags children whose descriptions are too thin to plan against before
+  the run starts rather than seven tickets in.
+
+- **`/colormath:implement-ticket`** sends a ticket with no plan back to
+  `plan-ticket`, and a ticket that needs several rounds of questions back to
+  `gather-requirements`.
+
+- **`/colormath:ship`** drafts a missing QA plan "the way `plan-ticket` would".
+
+### Upgrading
+
+Replace the old commands wherever they are written down:
+
+| Old | New |
+|---|---|
+| `/colormath:refine-ticket <key>` on an ungroomed ticket | `/colormath:gather-requirements <key>`, then `/colormath:plan-ticket <key>` |
+| `/colormath:refine-ticket <key>` on a ticket that just needs plans | `/colormath:plan-ticket <key>` |
+| `/colormath:refine-initiative <key>` | `/colormath:gather-requirements <key>` |
+| `/colormath:refine-ticket <key>` on a **task** | `/colormath:gather-requirements <key>` — and that is the whole of it |
+
+[Abacus](https://github.com/ColorMath/abacus) names both new skills on its
+Product board schema — `gather-requirements` moves work into **Designing**,
+`plan-ticket` into **Ready for Implementation** — and prints
+`plan-ticket <key>` as the hint on a ticket that is not yet ready. That change
+ships separately; until it merges, Abacus still prints the old name.
+
 ## v4.2.0 — 2026-09-08
 
 MINOR. The skills move house. **Nothing about any skill changed** — same seven
