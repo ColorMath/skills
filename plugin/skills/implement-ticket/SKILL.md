@@ -1,16 +1,17 @@
 ---
 name: implement-ticket
-description: Take a planned ticket all the way to a shipped PR — check its plan still matches the code, ask only what genuinely blocks, build it at the layer the plan names, execute its QA plan against the running stack, then hand off to /colormath:ship. Use this when someone says to implement, build, do, or work a ticket that has already been groomed, or names a ticket key and says "go". Not for grooming (that's /colormath:refine-ticket) and not for a defect report (that's /colormath:bugfix).
+description: Take a planned ticket all the way to a shipped PR — check its plan still matches the code, ask only what genuinely blocks, build it at the layer the plan names, execute its QA plan against the running stack, then hand off to /colormath:ship. Use this when someone says to implement, build, do, or work a ticket that has already been groomed, or names a ticket key and says "go". Not for grooming (that's /colormath:gather-requirements, then /colormath:plan-ticket) and not for a defect report (that's /colormath:bugfix).
 argument-hint: [ticket key, e.g. CM-00012]
 allowed-tools: Bash Read Edit Write Grep Glob Skill AskUserQuestion mcp__abacus__get_ticket mcp__abacus__add_comment mcp__abacus__list_boards mcp__abacus__list_tickets
 ---
 
 Implement the ticket in "$ARGUMENTS", QA it, and ship it.
 
-The ticket has already been groomed — `/colormath:refine-ticket` wrote a
-description, an implementation plan whose steps name real files, and a QA plan
-someone could execute. **Your job is to execute that, not to redo it.** The
-thinking happened; this is where it meets the code.
+The ticket has already been groomed — `/colormath:gather-requirements` wrote
+the description, and `/colormath:plan-ticket` wrote an implementation plan
+whose steps name real files and a QA plan someone could execute. **Your job is
+to execute that, not to redo it.** The thinking happened; this is where it
+meets the code.
 
 The one thing that makes this more than typing: **the plan was written against
 the codebase as it was.** Between grooming and now, files moved, an adjacent
@@ -33,7 +34,7 @@ decisions made after the plan was written, and they win.
 Then check it can be implemented at all:
 
 - **No implementation plan** — stop. This skill executes a plan; it does not
-  write one. Send them to `/colormath:refine-ticket <key>` and say why: a plan
+  write one. Send them to `/colormath:plan-ticket <key>` and say why: a plan
   written by the run that implements it has never been read by anyone.
 - **No QA plan** — say so and ask whether to continue. You can implement without
   one, but nothing will check the result the way a groomed ticket intends, and
@@ -84,8 +85,8 @@ grooming. Ask only when you genuinely cannot proceed:
 One round, `AskUserQuestion`, concrete options, recommendation first. Anything
 you can settle from the ticket, the initiative, the ADRs or the conventions is
 not a question. And if you find yourself wanting several rounds, the ticket is
-not groomed and should go back to `/colormath:refine-ticket` — say that instead
-of interviewing your way to a design.
+not groomed and should go back to `/colormath:gather-requirements` — say that
+instead of interviewing your way to a design.
 
 ## 4. Build it, at the layer the plan names
 
@@ -164,7 +165,7 @@ it seems useful, and let them.
 
 - **Execute the plan; don't rewrite it.** No re-grooming, no "improving" the
   plan silently. Where it is wrong, say so and decide with the user.
-- **A ticket with no plan goes back to `/colormath:refine-ticket`.** Writing the
+- **A ticket with no plan goes back to `/colormath:plan-ticket`.** Writing the
   plan and implementing it in the same breath means nobody ever reviewed the
   plan.
 - **Never work on the default branch**, and never merge by hand — `ship` owns

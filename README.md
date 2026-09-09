@@ -48,17 +48,25 @@ Each one's behaviour, prerequisites and contract dependencies are documented in
 
 | Skill | Takes | Does |
 |---|---|---|
-| `/colormath:refine-initiative` | an initiative key | Designs an initiative before it is built — investigates the architecture and decision records its features land in, interviews until the picture is complete, rewrites the initiative and its features. Stops short of code-level plans. |
-| `/colormath:plan-initiative` | an initiative key | Runs `refine-ticket` over every ticket under it, in build order, injecting each one's place in the sequence and what the earlier plans decided — so the seams line up. |
-| `/colormath:refine-ticket` | a ticket key | Grooms a ticket until it can be worked — investigates the code *before* asking anything, then writes back a standalone description, a file-anchored implementation plan, and an executable QA plan. |
+| `/colormath:gather-requirements` | a ticket or initiative key | Settles what is being asked for — investigates enough to ask good questions, interviews until the picture is complete, then writes back a standalone description, and on an initiative its feature definitions too. Writes no plans. |
+| `/colormath:plan-initiative` | an initiative key | Runs `plan-ticket` over every ticket under it, in build order, injecting each one's place in the sequence and what the earlier plans decided — so the seams line up. |
+| `/colormath:plan-ticket` | a ticket key | Plans a gathered ticket until it can be worked — investigates the code at file-and-line level, then writes back a file-anchored implementation plan and an executable QA plan. Writes no description. |
 | `/colormath:implement-ticket` | a ticket key | Builds a groomed ticket — checks the plan still matches the code, builds at the layer it names, executes the ticket's QA plan against the running stack, hands off to `ship`. |
 | `/colormath:bugfix` | a bug report | Turns a specific report into a merged fix — reproduces it before touching code, fixes at the layer the invariant belongs to, remediates data the bug already corrupted, hands off to `ship`. |
 | `/colormath:qa` | a focus area | QAs it against the running stack across security, correctness and accessibility catalogs, reproduces every finding, hands the fixes to `ship`. |
 | `/colormath:ship` | the current branch | Opens the PR, watches the gates, reads the review, executes the ticket's QA plan, fixes every finding it can, then decides once: auto-merge when genuinely clean, or hold and explain. |
 
-`refine-ticket`, `refine-initiative`, `plan-initiative` and `implement-ticket`
+`gather-requirements`, `plan-ticket`, `plan-initiative` and `implement-ticket`
 need the [Abacus](https://github.com/ColorMath/abacus) MCP server connected —
 the plugin's one tracker dependency.
+
+**Grooming is two skills, and the split is the contract.**
+`gather-requirements` owns `description` (and an initiative's features);
+`plan-ticket` owns `plan` and `qa_plan`. Neither writes the other's fields, so
+the requirements a plan is built on were settled and read by somebody before
+the plan existed. Abacus's board schema names them per column for the same
+reason: `gather-requirements` moves work into **Designing**, `plan-ticket` into
+**Ready for Implementation**.
 
 ## Why this is a separate repo
 
