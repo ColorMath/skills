@@ -50,7 +50,72 @@ If the ticket belongs to an initiative, read that too. The initiative says what
 the whole thing is for and what the neighbouring tickets are doing, which is how
 you avoid building something that collides with the ticket after it.
 
-## 2. Check the plan against the code before you touch anything
+**Keep the ticket's current `swimlane_id`.** The next step moves it, and this is
+what puts it back if the run ends without building anything.
+
+## 2. Say on the board that somebody is on it
+
+Move the ticket into the column this skill leads into — **now, before you read a
+line of the code**, not when the work is done.
+
+The column is a claim in the present tense: somebody is building this. A move
+made at the end has never once been true while it was true. The ticket spends
+its entire working life — the hours of reading, building and QA where a
+collision actually costs something — sitting in Ready for Implementation, and
+anybody looking at the board during exactly that window sees work nobody has
+picked up. The column then flickers past on the way to ship. A lane that no
+ticket is ever observed in is a lane that is not doing anything.
+
+The gate above is what makes this safe to do first. By here the ticket exists,
+has an implementation plan, is a type that can be built, and is going to be
+built. What is left is whether the plan still holds, and there is a way back for
+that below.
+
+**Ask the board where; never name a column.** Call `mcp__abacus__get_board` with
+the ticket's `board_id`. It returns the swimlanes **in board order**, each
+carrying `exit_commands` — the commands that move work *on from* that column.
+Each entry says its `skill`, the whole `command` line, and `leads_to` — the id
+of the swimlane that command moves the ticket into.
+
+Find the entry whose `skill` is `implement-ticket`; match on that field rather
+than on the command line, whose plugin half is configuration and differs per
+board. Then `mcp__abacus__move_ticket` with that entry's `leads_to` as the
+`swimlane_id`, and `position: 0`. The destination is stated, so do not count
+lanes yourself — "the one after the lane I matched" is arithmetic whose one
+wrong answer sends every ticket backwards.
+
+This used to be forbidden, and the reason is worth knowing: lane meaning was per
+board and free text, so one team's "In Review" was another's "Staging" and
+guessing at somebody's workflow was worse than leaving the ticket alone. Abacus
+columns now come from a board schema and say for themselves which skill leads
+into them, so there is nothing left to guess.
+
+**The move says somebody is building this, and only that.** Whether the code
+then goes through the PR pipeline is `ship`'s move to make, one column further
+on — which is also why the ticket has to be *here* before ship runs, rather than
+still in the column behind it.
+
+**Put it back if you hand the ticket off instead.** Steps 3 and 4 can end with
+the plan no longer describing the code and the ticket going back to
+`/colormath:plan-ticket` or `/colormath:gather-requirements`. When that happens,
+`move_ticket` it to the `swimlane_id` you kept in step 1, say in your report
+that you did, and stop. A ticket parked in Implementing with nobody implementing
+it is a worse lie than the one this step exists to correct.
+
+Three cases where you do not move it, each reported rather than retried:
+
+- **No column names this skill** — a Task Tracker names none, and neither does a
+  board on a schema that runs a different process. Say the board does not
+  describe this step, and carry on building: the work is not conditional on the
+  board being able to describe it.
+- **The ticket is in no column at all.** The move is refused: *"Plan this ticket
+  for a release, or file it under an initiative, before giving it a status."*
+  That is correct; report it and carry on.
+- **The move fails otherwise.** Say so plainly and carry on. A ticket in the
+  wrong column is a smaller problem than a report claiming a move that did not
+  happen — and a smaller problem than not building the ticket.
+
+## 3. Check the plan against the code before you touch anything
 
 Walk the plan step by step with the repo open. For each step:
 
@@ -66,11 +131,11 @@ Walk the plan step by step with the repo open. For each step:
   recorded in April, and the decision wins.
 
 Where the plan holds, say so briefly and move on. Where it does not, that is a
-**finding**, and it goes to the user in step 3 rather than being quietly
+**finding**, and it goes to the user in step 4 rather than being quietly
 routed around. Silently improving a plan is how a reviewed decision gets
 replaced by an unreviewed one.
 
-## 3. Ask only what actually blocks you
+## 4. Ask only what actually blocks you
 
 By this point there usually is nothing to ask — grooming's whole job was to
 remove these, and a skill that reopens settled questions has wasted the
@@ -88,7 +153,11 @@ not a question. And if you find yourself wanting several rounds, the ticket is
 not groomed and should go back to `/colormath:gather-requirements` — say that
 instead of interviewing your way to a design.
 
-## 4. Build it, at the layer the plan names
+Handing the ticket back is one of the two good outcomes here, and it has a
+board move of its own: put the ticket back in the column step 2 took it out of
+before you stop.
+
+## 5. Build it, at the layer the plan names
 
 Branch first — `feat/<ticket-key-slug>` or the repo's own convention — never the
 default branch.
@@ -113,7 +182,7 @@ Three things worth more than speed:
   it that is obviously also wrong. Note the neighbour, finish the ticket. If it
   belongs to an initiative, the neighbour may literally be the next ticket.
 
-## 5. Execute the QA plan against the running stack
+## 6. Execute the QA plan against the running stack
 
 The QA plan is a list of claims about a running system, and an item counts only
 when you have watched the system agree. A passing test suite is not the QA plan
@@ -137,48 +206,11 @@ document now says it passed.
 Restore what you mutated: rows you created, config you flipped, credentials you
 minted. Local state is yours to change and yours to put back.
 
-## 6. Move it on
-
-The code is written, so the board should say so — **and it has to say so before
-`ship` runs**, not after. `ship` moves the ticket on from the column this skill
-leaves it in, so a ticket still sitting in the previous column when ship starts
-gets moved from the wrong place. Do this first, then ship.
-
-**Ask the board where; never name a column.** Call
-`mcp__abacus__get_board` with the ticket's `board_id`. It returns the swimlanes
-**in board order**, each carrying `exit_commands` — the commands that move work
-*on from* that column. Each entry says its `skill`, the whole `command` line,
-and `leads_to` — the id of the swimlane that command moves the ticket into.
-
-Find the entry whose `skill` is `implement-ticket`; match on that field rather
-than on the command line, whose plugin half is configuration and differs per
-board. Then `mcp__abacus__move_ticket` with that entry's `leads_to` as the
-`swimlane_id`, and `position: 0`. The destination is stated, so do not count
-lanes yourself — "the one after the lane I matched" is arithmetic whose one
-wrong answer sends every ticket backwards.
-
-This used to be forbidden, and the reason is worth knowing: lane meaning was per
-board and free text, so one team's "In Review" was another's "Staging" and
-guessing at somebody's workflow was worse than leaving the ticket alone. Abacus
-columns now come from a board schema and say for themselves which skill leads
-into them, so there is nothing left to guess.
-
-**The move says the code is written, and only that.** Whether it then goes
-through the PR pipeline is `ship`'s move to make, one column further on — so do
-this as soon as the work is done and QA'd locally, before the PR exists.
-
-Three cases where you do not move it, each reported rather than retried:
-
-- **No column names this skill** — a Task Tracker names none, and neither does a
-  board on a schema that runs a different process. Say the board does not
-  describe this step.
-- **The ticket is in no column at all.** The move is refused: *"Plan this ticket
-  for a release, or file it under an initiative, before giving it a status."*
-  That is correct; report it.
-- **The move fails otherwise.** Say so plainly. A ticket in the wrong column is
-  a smaller problem than a report claiming a move that did not happen.
-
 ## 7. Ship it
+
+The ticket has been sitting in the right column since step 2, which is what
+`ship` needs: it moves the ticket on from *this* column, and a ticket still in
+the one behind would be moved from the wrong place.
 
 Run the repo's full local gate mirror once (`make preflight`) so an avoidable
 failure does not cost a CI round trip. Then invoke `/colormath:ship`, which
@@ -212,10 +244,13 @@ because the plugin half is configuration and differs per board.
 
 **Once, at the end, and only if you did the work.** Not on every turn and not
 when you begin — a skill that reports each time it thinks makes the count
-meaningless. If you were interrupted, or you sent the ticket back to
-`/colormath:plan-ticket` or `/colormath:gather-requirements` without building
-anything, record nothing: a run that did not happen must not leave a row saying
-it did.
+meaningless. The board move in step 2 is deliberately the other way round, and
+the two are not in tension: a column is a claim about what is happening now, so
+it is only useful said early, while a metric is a record of what happened, which
+cannot be written until it has. If you were interrupted, or you sent the ticket
+back to `/colormath:plan-ticket` or `/colormath:gather-requirements` without
+building anything, record nothing: a run that did not happen must not leave a
+row saying it did.
 
 **The rows are append-only.** Nobody can edit or delete one, you included, so a
 wrong subject or a double-record is permanent. Get it right rather than
@@ -232,6 +267,9 @@ take is worse than a missing row.
 - **A ticket with no plan goes back to `/colormath:plan-ticket`.** Writing the
   plan and implementing it in the same breath means nobody ever reviewed the
   plan.
+- **Move the ticket when you start, not when you finish.** The column says
+  somebody is on this; said at the end it was never true while it was true. Hand
+  the ticket back and you move it back.
 - **Never work on the default branch**, and never merge by hand — `ship` owns
   that decision and has the gates to make it.
 - **QA is executed, not asserted.** Every item gets an observation. Unverified

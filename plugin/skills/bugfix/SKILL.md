@@ -88,7 +88,74 @@ If something is genuinely urgent — actively corrupting data, or blocking every
 user — say that up front and offer the fastest safe path, rather than working
 methodically through a long diagnosis while the bleeding continues.
 
-## 2. Reproduce it against the running stack
+**If this came from a ticket, keep its current `swimlane_id`.** The next step
+moves it, and this is what puts it back if the run ends without a fix.
+
+## 2. Say on the board that somebody is on it
+
+If there is a ticket, move it into the column this skill leads into — **now,
+before you try to reproduce anything**, not when the fix is written.
+
+The column is a claim in the present tense: somebody is on this bug. A move
+made at the end has never once been true while it was true. The ticket spends
+its entire working life — bringing the stack up, reproducing, tracing the cause,
+writing the fix and the regression test, remediating the data — sitting wherever
+it was filed, so anybody looking at the board during exactly the window when a
+second person might pick the same bug up sees a bug nobody has touched. The
+column then flickers past on the way to ship. A lane that no ticket is ever
+observed in is a lane that is not doing anything.
+
+This is the first step that costs anything, which is what makes it the right
+place. Step 1 was reading and asking; from here on you are running a stack and
+editing code, and that is the part worth claiming.
+
+**Ask the board where; never name a column.** Call `mcp__abacus__get_board`
+with the ticket's `board_id`. It returns the swimlanes **in board order**, each
+carrying `exit_commands` — the commands that move work *on from* that column.
+Each entry says its `skill`, the whole `command` line, and `leads_to` — the id
+of the swimlane that command moves the ticket into.
+
+Find the entry whose `skill` is `bugfix`; match on that field rather than on the
+command line, whose plugin half is configuration and differs per board. Then
+`mcp__abacus__move_ticket` with that entry's `leads_to` as the `swimlane_id`,
+and `position: 0`. The destination is stated, so do not count lanes yourself —
+"the one after the lane I matched" is arithmetic whose one wrong answer sends
+every ticket backwards.
+
+This used to be forbidden, and the reason is worth knowing: lane meaning was per
+board and free text, so one team's "In Review" was another's "Staging" and
+guessing at somebody's workflow was worse than leaving the ticket alone. Abacus
+columns now come from a board schema and say for themselves which skill leads
+into them, so there is nothing left to guess.
+
+**The move says somebody is on this bug, and only that.** Whether the fix then
+goes through the PR pipeline is `ship`'s move to make, one column further on —
+which is also why the ticket has to be *here* before ship runs, rather than
+still in the column behind it.
+
+**Put it back if you stop without a fix.** Step 3 can end in "cannot reproduce",
+which is a real outcome and a good one. When it does, `move_ticket` the ticket
+back to the `swimlane_id` you kept in step 1, say in your report that you did,
+and stop. A bug parked in Implementing with nobody fixing it is a worse lie than
+the one this step exists to correct.
+
+Four cases where you do not move it, each reported rather than retried:
+
+- **There is no ticket.** A bug pasted in as prose or a stack trace has nothing
+  to move. Say so once and carry on; the fix does not depend on being filed.
+- **No column names this skill** — a Task Tracker names none, and neither does a
+  board on a schema that runs a different process. Say the board does not
+  describe this step, and carry on: the work is not conditional on the board
+  being able to describe it.
+- **The ticket is in no column at all.** The move is refused: *"Plan this ticket
+  for a release, or file it under an initiative, before giving it a status."*
+  A bug reported straight into the backlog is the common case; report it and
+  carry on.
+- **The move fails otherwise.** Say so plainly and carry on. A ticket in the
+  wrong column is a smaller problem than a report claiming a move that did not
+  happen — and a smaller problem than not fixing the bug.
+
+## 3. Reproduce it against the running stack
 
 A fix that isn't anchored to a failure you watched happen is a guess. This step
 is what makes the rest trustworthy, and it's the one worth slowing down for.
@@ -137,7 +204,11 @@ Often the missing piece is one detail the reporter can supply in seconds. A
 wrong fix shipped confidently is worse than an honest "I need one more thing"
 — it burns a review cycle and leaves the real bug live.
 
-## 3. Diagnose: find the defect, not the symptom
+Move the ticket back to the column step 2 took it out of before you stop, and
+say in your report that you did. This is the exit that step's "put it back"
+paragraph was written for.
+
+## 4. Diagnose: find the defect, not the symptom
 
 The place an error *surfaces* is usually not the place it's *caused*. Trace
 backwards from the observed failure until you reach the point where the system
@@ -163,13 +234,13 @@ siblings. When you notice unrelated problems nearby — and you will — write t
 down and mention them at the end. Folding them in bloats the diff, muddies the
 review, and makes it harder to tell what actually fixed the reported symptom.
 
-## 4. Fix it, and prove the fix with a regression test
+## 5. Fix it, and prove the fix with a regression test
 
 Make the change in the idiom of the surrounding code, following the repo's
 `AGENTS.md` / `CLAUDE.md` conventions and its layering rules.
 
 Add a regression test **at the layer the fix lives at** — the chokepoint you
-chose in step 3, so the test guards the rule itself rather than one caller of
+chose in step 4, so the test guards the rule itself rather than one caller of
 it.
 
 **Verify the test actually catches the bug.** A regression test that passes
@@ -179,11 +250,11 @@ the test goes red, then restore and watch it go green. This takes a minute and
 is the difference between a test that pins the behavior down and one that just
 looks reassuring.
 
-Then **re-run the original repro from step 2** against the running stack. A
+Then **re-run the original repro from step 3** against the running stack. A
 green unit test is not proof the bug is gone — it proves the case you thought
 of is gone. The repro is what the reporter actually did.
 
-## 5. Remediate data the defect already corrupted
+## 6. Remediate data the defect already corrupted
 
 The code fix stops the bleeding. It does nothing about what already leaked —
 and for a production bug, that's usually the half that matters to real users.
@@ -215,35 +286,13 @@ Ask: could this defect have written bad rows, files, or cached values? If so:
 - **Never run it against production yourself.** Ship it as a migration or a
   reviewed script, following the repo's migration conventions.
 
-## 6. Move it on, then ship it
+## 7. Ship it
+
+The ticket has been sitting in the right column since step 2, which is what
+`ship` needs: it moves the ticket on from *this* column, and a ticket still in
+the one behind would be moved from the wrong place.
 
 - Commit on a branch — `fix/<short-slug>` — never on the default branch.
-- **Move the ticket, before handing off.** `ship` moves it on from the column
-  this skill leaves it in, so a ticket still in the previous column when ship
-  starts gets moved from the wrong place. Ask the board rather than naming a
-  column: `mcp__abacus__get_board` with the ticket's `board_id` returns the
-  swimlanes **in board order**, each with its `exit_commands` — the commands
-  that move work *on from* that column. Each entry says its `skill`, the whole
-  `command` line, and `leads_to`, the id of the swimlane it moves the ticket
-  into. Find the entry whose `skill` is `bugfix` — match that field, not the
-  command line, whose plugin half is configuration — and
-  `mcp__abacus__move_ticket` with its `leads_to` as the `swimlane_id` and
-  `position: 0`. The destination is stated, so do not count lanes: "the lane
-  after the one I matched" is arithmetic whose one wrong answer sends every
-  ticket backwards.
-
-  This was forbidden until Abacus columns came from a board schema, on the
-  reasoning that lane meaning was per board and guessing was worse than leaving
-  the ticket alone. The column says which skill leads into it now, so there is
-  nothing to guess. The move says the fix is written, and only that — whether it
-  then goes through the PR pipeline is ship's move to make, one column further
-  on.
-
-  Do not move it, and say why, when no column names this skill (a Task Tracker
-  names none), when the ticket is in no column and the move is refused with
-  *"Plan this ticket for a release, or file it under an initiative, before
-  giving it a status"*, or when it fails for any other reason. A bug reported
-  straight into the backlog is the common case for the second one.
 - Run the repo's full local gate mirror once (`make preflight`) before handing
   off, so an avoidable failure doesn't cost a CI round trip.
 - Then invoke `/colormath:ship`, which takes it the rest of the way: PR, gates,
@@ -257,7 +306,7 @@ carries what a reviewer needs and no reviewer can reconstruct on their own:
 **why the fix sits at that layer**, and **the data remediation** — including
 anything you deliberately left for a human.
 
-## 7. Record that you ran
+## 8. Record that you ran
 
 Abacus cannot see this happen. Nothing outside your own run knows a skill
 started, so a run you do not record did not happen as far as the ticket is
@@ -271,8 +320,11 @@ plugin half is configuration and differs per board.
 
 **Once, at the end, and only if you did the work.** Not on every turn and not
 when you begin — a skill that reports each time it thinks makes the count
-meaningless. If you were interrupted, or you stopped at step 2 because you
-could not reproduce it, record nothing: a run that did not happen must not
+meaningless. The board move in step 2 is deliberately the other way round, and
+the two are not in tension: a column is a claim about what is happening now, so
+it is only useful said early, while a metric is a record of what happened, which
+cannot be written until it has. If you were interrupted, or you stopped at
+step 3 because you could not reproduce it, record nothing: a run that did not happen must not
 leave a row saying it did.
 
 **The rows are append-only.** Nobody can edit or delete one, you included, so a
@@ -285,7 +337,7 @@ take is worse than a missing row.
 
 ## Rules
 
-- **Reproduce before you fix.** If you couldn't reproduce it, stop at step 2
+- **Reproduce before you fix.** If you couldn't reproduce it, stop at step 3
   and report — never ship a speculative fix without saying plainly that it's
   reasoned rather than observed.
 - **Never modify production**, and never run a remediation against it yourself.
@@ -295,6 +347,9 @@ take is worse than a missing row.
   configured provider, third-party API calls, writes to any shared environment.
   A dev `.env` often holds a *live* key, so "it's only the dev stack" is not a
   reason to assume a send won't really deliver. Offer to redirect locally.
+- **Move the ticket when you start, not when you finish.** The column says
+  somebody is on this bug; said at the end it was never true while it was true.
+  Stop without a fix and you move it back.
 - **Fix the reported bug and its siblings**, not everything you notice. Adjacent
   problems get written down and mentioned, not folded into the diff.
 - Local state is yours to mutate while reproducing — record a baseline first so
