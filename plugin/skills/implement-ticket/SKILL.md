@@ -2,7 +2,7 @@
 name: implement-ticket
 description: Take a planned ticket all the way to a shipped PR — check its plan still matches the code, ask only what genuinely blocks, build it at the layer the plan names, execute its QA plan against the running stack, then hand off to /colormath:ship. Use this when someone says to implement, build, do, or work a ticket that has already been groomed, or names a ticket key and says "go". Not for grooming (that's /colormath:gather-requirements, then /colormath:plan-ticket) and not for a defect report (that's /colormath:bugfix).
 argument-hint: [ticket key, e.g. CM-00012]
-allowed-tools: Bash Read Edit Write Grep Glob Skill AskUserQuestion mcp__abacus__get_ticket mcp__abacus__add_comment mcp__abacus__list_boards mcp__abacus__list_tickets
+allowed-tools: Bash Read Edit Write Grep Glob Skill AskUserQuestion mcp__abacus__get_ticket mcp__abacus__add_comment mcp__abacus__get_board mcp__abacus__move_ticket mcp__abacus__list_boards mcp__abacus__list_tickets
 ---
 
 Implement the ticket in "$ARGUMENTS", QA it, and ship it.
@@ -156,10 +156,35 @@ ticket stops being a plan and becomes a record. Leave the ticket's own fields
 alone: `plan` and `qa_plan` are what was intended, and the comment is what
 happened.
 
-Do not move the ticket between lanes. Lane meaning is per board — one team's
-"In Review" is another's "Staging" — and guessing at somebody's workflow is
-worse than leaving it where they put it. Say what you would have moved it to, if
-it seems useful, and let them.
+Then move it to the column that names this skill. **Ask the board which column
+that is; never name one.** Call `mcp__abacus__get_board` with the ticket's
+`board_id`. Every swimlane it returns carries `entry_commands` — the commands
+that move work *into* that column — and exactly one of them names this skill.
+Match on the part after the colon (`implement-ticket`), because the plugin half
+is configuration and differs per board. Then `mcp__abacus__move_ticket` with
+that `swimlane_id` and `position: 0`.
+
+This used to be forbidden, and the reason is worth knowing: lane meaning was per
+board and free text, so one team's "In Review" was another's "Staging" and
+guessing at somebody's workflow was worse than leaving the ticket alone. Abacus
+columns now come from a board schema and say for themselves which skill leads
+into them, so there is nothing left to guess.
+
+**The move says the code is written, not that it shipped.** Do it when the work
+is done and the PR is open, whether or not it merged — the comment above records
+what actually happened to the PR, and a held PR is still code complete. If ship
+never got that far, leave the ticket where it is.
+
+Three cases where you do not move it, each reported rather than retried:
+
+- **No column names this skill** — a Task Tracker names none, and neither does a
+  board on a schema that runs a different process. Say the board does not
+  describe this step.
+- **The ticket is in no column at all.** The move is refused: *"Plan this ticket
+  for a release, or file it under an initiative, before giving it a status."*
+  That is correct; report it.
+- **The move fails otherwise.** Say so plainly. A ticket in the wrong column is
+  a smaller problem than a report claiming a move that did not happen.
 
 ## Rules
 

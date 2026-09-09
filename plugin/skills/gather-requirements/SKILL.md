@@ -2,7 +2,7 @@
 name: gather-requirements
 description: Establish what a ticket or an initiative actually asks for — read it, investigate the code and the architecture it lands in, interview the person who filed it until the picture is complete, then write back a description that stands on its own, and for an initiative, feature definitions someone could pick up. Use this whenever someone wants a ticket or initiative fleshed out, scoped, designed, "made real", or checked before work starts — or names a key and asks what it would actually take. Stops at the requirements: implementation and QA plans belong to /colormath:plan-ticket, and this is the layer above.
 argument-hint: [ticket or initiative key, e.g. CM-00001 — or enough of the title to find it]
-allowed-tools: Bash Read Grep Glob AskUserQuestion mcp__abacus__get_ticket mcp__abacus__update_ticket mcp__abacus__add_comment mcp__abacus__add_feature mcp__abacus__update_feature mcp__abacus__move_feature mcp__abacus__list_boards mcp__abacus__list_tickets mcp__abacus__list_members
+allowed-tools: Bash Read Grep Glob AskUserQuestion mcp__abacus__get_ticket mcp__abacus__update_ticket mcp__abacus__add_comment mcp__abacus__add_feature mcp__abacus__update_feature mcp__abacus__move_feature mcp__abacus__get_board mcp__abacus__move_ticket mcp__abacus__list_boards mcp__abacus__list_tickets mcp__abacus__list_members
 ---
 
 Establish what the work named in "$ARGUMENTS" actually asks for, until someone
@@ -265,9 +265,51 @@ Where the interview produced a decision worth preserving as a record — a
 rejected approach, the reasoning behind a scope cut — `add_comment` is its
 home. The description should read as the current intent, not its history.
 
-Finish in chat with: the key, what changed, what you verified against the code
-versus assumed, the open questions that survived, and (for an initiative) the
-removals the user still has to make by hand. Then say what happens next:
+## 6. Move it to the column that names this skill
+
+The requirements are settled, so the ticket has moved on and the board should
+say so.
+
+**Ask the board which column that is; never name one.** Call
+`mcp__abacus__get_board` with the ticket's `board_id`. Every swimlane it returns
+carries `entry_commands` — the commands that move work *into* that column — and
+exactly one of them names this skill. Match on the part after the colon
+(`gather-requirements`), because the plugin half is configuration and differs
+per board. Then `mcp__abacus__move_ticket` with that `swimlane_id` and
+`position: 0`.
+
+This used to be forbidden, and the reason it was is worth knowing: lane meaning
+was per board and free text, so one team's "In Review" was another's "Staging"
+and guessing at somebody's workflow was worse than leaving the ticket alone.
+Abacus columns now come from a board schema and say for themselves which skill
+leads into them, so there is nothing left to guess — you are reading the answer,
+not inferring it.
+
+Three cases where you do **not** move it, and each is reported rather than
+retried:
+
+- **No column names this skill.** A Task Tracker board names none at all, and a
+  board on a schema that does not run this process names none either. Leave the
+  ticket where it is and say the board does not describe this step.
+- **The ticket is in no column at all.** A ticket in the backlog has no status
+  to change, and the move is refused: *"Plan this ticket for a release, or file
+  it under an initiative, before giving it a status."* That is correct — a lane
+  comes from a release or an initiative, and moving a ticket into one is not how
+  it gets planned. Report it and let the user decide. **This is the common case
+  for a freshly written ticket**, so expect it and do not treat it as a failure
+  of the gathering.
+- **The move fails for any other reason.** Say so plainly. The description is
+  written either way, and a ticket in the wrong column is a smaller problem than
+  a report claiming a move that did not happen.
+
+**An initiative moves like anything else** — it is a ticket, it sits in a
+column, and its requirements were just settled. Its *children* are not yours to
+move; they do not exist yet.
+
+Finish in chat with: the key, what changed, which column it is in now, what you
+verified against the code versus assumed, the open questions that survived, and
+(for an initiative) the removals the user still has to make by hand. Then say
+what happens next:
 
 - a **feature or bug** is ready for `/colormath:plan-ticket`, which writes the
   implementation and QA plans that make it startable;
@@ -301,9 +343,11 @@ Nothing here can delete a ticket — say so plainly if you're asked to.
   that is a question for the user and a line in the write-up, by ADR number.
 - **Don't implement anything.** No branches, no code edits, no PRs. The
   gathered requirements are the deliverable.
-- **Gather this one only.** Don't create, split, move, reassign or re-type
-  tickets as a side effect — if it is really several, recommend the split and
-  let the user call it.
+- **Gather this one only.** Don't create, split, reassign or re-type tickets as
+  a side effect — if it is really several, recommend the split and let the user
+  call it. The **one** move you make is this ticket into the column that names
+  this skill, once its description is written; everything else about where
+  tickets sit is somebody else's decision.
 - **Don't start building.** For an initiative the transition is one-way, it
   locks the features and cuts the tickets, and it is a person's decision —
   there is deliberately no tool for it. If asked, explain and hand back.

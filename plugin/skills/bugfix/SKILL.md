@@ -2,7 +2,7 @@
 name: bugfix
 description: Take a bug report all the way from raw report to merged fix — establish the facts the report left out (which environment, which surface, the literal repro), reproduce the defect against the running stack, fix it at the layer the invariant belongs to, add a regression test that fails without the fix, assess whether the defect already corrupted stored data and remediate that in the same PR, then hand off to /colormath:ship. Use this whenever someone reports something broken — a ticket key for a filed bug, a bug report, a pasted stack trace or error log, "why is X doing Y", "users can't Z", a production incident, a written-up findings doc — even when they never say the word "bug". Not for sweeping a whole feature area for unknown problems (that's /colormath:qa), and not for shipping a branch that's already fixed (that's /colormath:ship).
 argument-hint: [a ticket key (CM-00012), or the report itself — prose, a pasted error/log, or a path to a report file]
-allowed-tools: Bash Read Edit Write Grep Glob Skill AskUserQuestion mcp__abacus__get_ticket mcp__abacus__add_comment mcp__abacus__list_boards mcp__abacus__list_tickets
+allowed-tools: Bash Read Edit Write Grep Glob Skill AskUserQuestion mcp__abacus__get_ticket mcp__abacus__add_comment mcp__abacus__get_board mcp__abacus__move_ticket mcp__abacus__list_boards mcp__abacus__list_tickets
 ---
 
 Turn the bug report in "$ARGUMENTS" into a merged fix.
@@ -251,7 +251,25 @@ anything you deliberately left for a human.
   `add_comment` with the outcome — the PR link, whether it merged or is held,
   the cause you found, and what you deliberately left alone. Leave the ticket's
   own fields alone: the description is what was reported, and the comment is
-  what happened. Do not move it between lanes; lane meaning is per board and
-  the person who filed it decides when it is done.
+  what happened.
+- **Then move it to the column that names this skill.** Ask the board rather
+  than naming a column: `mcp__abacus__get_board` with the ticket's `board_id`
+  returns every swimlane with its `entry_commands`, one of which names this
+  skill — match the part after the colon (`bugfix`), since the plugin half is
+  configuration. Then `mcp__abacus__move_ticket` with that `swimlane_id` and
+  `position: 0`.
+
+  This was forbidden until Abacus columns came from a board schema, on the
+  reasoning that lane meaning was per board and guessing was worse than leaving
+  the ticket alone. The column says which skill leads into it now, so there is
+  nothing to guess. The move says the fix is written, not that it shipped —
+  do it when the PR is open, held or merged, and not at all if ship never got
+  there.
+
+  Do not move it, and say why, when no column names this skill (a Task Tracker
+  names none), when the ticket is in no column and the move is refused with
+  *"Plan this ticket for a release, or file it under an initiative, before
+  giving it a status"*, or when it fails for any other reason. A bug reported
+  straight into the backlog is the common case for the second one.
 - Your job ends where `/colormath:ship` takes over, and ship's own rules apply
   from there.

@@ -123,6 +123,12 @@ grooming short, or a question went unanswered — record it as unfinished and
 move on rather than looping. Never report a ticket as planned because the
 sub-skill ran; report it planned because the fields are there.
 
+`plan-ticket` also **moves each ticket it plans** into the column that names it,
+so the board fills up column by column as the run proceeds. That is its job, not
+yours: do not move children yourself, and do not treat a ticket that stayed put
+as a failure — a child still in the backlog cannot take a column at all, and
+`plan-ticket` will have said so.
+
 Tell the user where you are between tickets ("3 of 7 done, on CM-00014 next").
 A long run with no narration reads as a hang.
 

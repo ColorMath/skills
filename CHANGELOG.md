@@ -54,6 +54,29 @@ a board column, a bookmark) stops resolving at that moment.
 
 ### Changed
 
+- **The skills move the ticket now.** `gather-requirements`, `plan-ticket`,
+  `implement-ticket` and `bugfix` each finish by moving the ticket into the
+  board column that names them, so the board reflects what has actually
+  happened instead of waiting for somebody to drag a card. They ask the board
+  which column that is — `get_board` returns each swimlane's `entry_commands`,
+  and a skill moves to the one naming itself — rather than matching a column
+  title, so a renamed column keeps working and a board on a different schema is
+  simply left alone.
+
+  This reverses an explicit instruction in `implement-ticket` and `bugfix` not
+  to move tickets, and the reason it can be reversed is the interesting half:
+  that rule existed because lane meaning was per board and free text, so one
+  team's "In Review" was another's "Staging". Abacus columns come from a schema
+  now and declare which skill leads into them, so there is nothing left to
+  guess.
+
+  A skill moves the ticket **only on success**, and never when the ticket is
+  still in the backlog — a lane comes from a release or an initiative, and
+  Abacus refuses the move with *"Plan this ticket for a release, or file it
+  under an initiative, before giving it a status."* Both cases are reported
+  rather than retried. `plan-initiative` moves nothing itself; the `plan-ticket`
+  calls it makes each move their own ticket.
+
 - **The split is the contract.** `gather-requirements` owns `description` (and
   an initiative's features); `plan-ticket` owns `plan` and `qa_plan`. Neither
   writes the other's fields, so the requirements a plan is built on were
