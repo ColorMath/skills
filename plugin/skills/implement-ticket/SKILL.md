@@ -137,26 +137,14 @@ document now says it passed.
 Restore what you mutated: rows you created, config you flipped, credentials you
 minted. Local state is yours to change and yours to put back.
 
-## 6. Ship it
+## 6. Move it on
 
-Run the repo's full local gate mirror once (`make preflight`) so an avoidable
-failure does not cost a CI round trip. Then invoke `/colormath:ship`, which
-takes it the rest of the way: PR, gates, the review, a second pass over this
-same QA plan against the running stack, fixes for what turns up, and either an
-auto-merge when the PR is genuinely clean or a hold with the reason.
+The code is written, so the board should say so — **and it has to say so before
+`ship` runs**, not after. `ship` moves the ticket on from the column this skill
+leaves it in, so a ticket still sitting in the previous column when ship starts
+gets moved from the wrong place. Do this first, then ship.
 
-Give ship a title naming the change in the ticket's own terms, and a body that
-carries what a reviewer cannot reconstruct: **the ticket key and what it asked
-for**, **where the plan held and where it did not**, **the QA plan's results
-including anything unverified**, and any deviation you made and why.
-
-When ship comes back, `add_comment` on the ticket with the outcome — the PR
-link, whether it merged or is held, and the deviations. That comment is how the
-ticket stops being a plan and becomes a record. Leave the ticket's own fields
-alone: `plan` and `qa_plan` are what was intended, and the comment is what
-happened.
-
-Then move it on. **Ask the board where; never name a column.** Call
+**Ask the board where; never name a column.** Call
 `mcp__abacus__get_board` with the ticket's `board_id`. It returns the swimlanes
 **in board order**, each carrying `exit_commands` — the commands that move work
 *on from* that column. Each entry says its `skill`, the whole `command` line,
@@ -175,10 +163,9 @@ guessing at somebody's workflow was worse than leaving the ticket alone. Abacus
 columns now come from a board schema and say for themselves which skill leads
 into them, so there is nothing left to guess.
 
-**The move says the code is written, not that it shipped.** Do it when the work
-is done and the PR is open, whether or not it merged — the comment above records
-what actually happened to the PR, and a held PR is still code complete. If ship
-never got that far, leave the ticket where it is.
+**The move says the code is written, and only that.** Whether it then goes
+through the PR pipeline is `ship`'s move to make, one column further on — so do
+this as soon as the work is done and QA'd locally, before the PR exists.
 
 Three cases where you do not move it, each reported rather than retried:
 
@@ -190,6 +177,26 @@ Three cases where you do not move it, each reported rather than retried:
   That is correct; report it.
 - **The move fails otherwise.** Say so plainly. A ticket in the wrong column is
   a smaller problem than a report claiming a move that did not happen.
+
+## 7. Ship it
+
+Run the repo's full local gate mirror once (`make preflight`) so an avoidable
+failure does not cost a CI round trip. Then invoke `/colormath:ship`, which
+takes it the rest of the way: PR, gates, the review, a second pass over this
+same QA plan against the running stack, fixes for what turns up, either an
+auto-merge when the PR is genuinely clean or a hold with the reason — and the
+next move on the board.
+
+Give ship a title naming the change in the ticket's own terms, and a body that
+carries what a reviewer cannot reconstruct: **the ticket key and what it asked
+for**, **where the plan held and where it did not**, **the QA plan's results
+including anything unverified**, and any deviation you made and why.
+
+When ship comes back, `add_comment` on the ticket with the outcome — the PR
+link, whether it merged or is held, and the deviations. That comment is how the
+ticket stops being a plan and becomes a record. Leave the ticket's own fields
+alone: `plan` and `qa_plan` are what was intended, and the comment is what
+happened.
 
 ## Rules
 
