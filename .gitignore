@@ -1,0 +1,9 @@
+# skill-creator eval scratch. Untracked on purpose: the artifacts are full of
+# product-specific fixtures from whichever consumer repo the eval ran against,
+# and they are a record of one run rather than something this repo ships.
+plugin/skills/*/evals/
+plugin/skills/qa-workspace/
+
+# Editor and OS noise
+.DS_Store
+*.swp

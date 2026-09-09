@@ -1,0 +1,48 @@
+name: CI
+
+# The skills repo has no gate suite of its own. The gates in ColorMath/ci run
+# against `example/`, a compliant Python consumer; there is nothing here to lint
+# but Markdown and two small JSON manifests.
+#
+# That makes the checks below more load-bearing than they look, not less.
+# Consumers do NOT pin this repo: `.claude/settings.json` names the marketplace
+# and Claude Code tracks the default branch, so **merging to main ships to every
+# install on its next auto-update**. A malformed plugin.json reaches everyone
+# before anyone cuts a release. These two jobs are the only thing between a bad
+# merge and that.
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # The version this repo writes down must agree with the newest reachable tag,
+  # and that tag must exist. Weaker consequences than in ColorMath/ci — nothing
+  # resolves this version to fetch a script — but it is what keeps the version a
+  # user sees in `/plugin` honest against the changelog entry describing it.
+  #
+  # Safe to block: it can only fail on a PR that edited a version string. A PR
+  # touching none of them inherits main's consistent state and passes.
+  release-consistency:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          # verify.sh compares the stamp against the newest reachable tag.
+          fetch-depth: 0
+      - run: ./release/verify.sh
+
+  # Both manifests must parse and describe what is actually on disk. Claude Code
+  # fails quietly on a malformed manifest — the plugin simply does not appear —
+  # so nothing downstream would report this.
+  manifests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - run: ./release/check-manifests.sh
