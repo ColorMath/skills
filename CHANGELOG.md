@@ -55,16 +55,23 @@ a board column, a bookmark) stops resolving at that moment.
 ### Changed
 
 - **The skills move the ticket now.** `gather-requirements`, `plan-ticket`,
-  `implement-ticket` and `bugfix` each finish by moving the ticket into the
-  next board column, so the board reflects what has actually happened instead
-  of waiting for somebody to drag a card.
+  `implement-ticket`, `bugfix` and `ship` each move the ticket into the next
+  board column, so the board reflects what has actually happened instead of
+  waiting for somebody to drag a card.
 
   **They ask the board where to move it.** `get_board` returns the swimlanes in
   board order, each carrying `exit_commands` — the commands that move work *on
-  from* that column. A skill finds the lane naming itself, which is the one the
-  work leaves, and moves the ticket to the **next** one. No skill matches a
-  column title, so a renamed column keeps working and a board on a different
-  schema is simply left alone.
+  from* that column. Every entry says its `skill`, the whole `command` line, and
+  **`leads_to`, the id of the swimlane that command moves the ticket into**. A
+  skill matches its own bare name against `skill` and hands `leads_to` straight
+  to `move_ticket`.
+
+  Nothing counts lanes, and that is deliberate: derived as "the swimlane after
+  the one naming me", the destination has exactly one wrong answer available —
+  the lane you matched — and taking it sends every ticket one column *backwards*
+  with nothing in the system to notice. No skill matches a column title either,
+  so a renamed column keeps working and a board on a different schema is simply
+  left alone.
 
   This reverses an explicit instruction in `implement-ticket` and `bugfix` not
   to move tickets, and the reason it can be reversed is the interesting half:
@@ -72,6 +79,16 @@ a board column, a bookmark) stops resolving at that moment.
   team's "In Review" was another's "Staging". Abacus columns come from a schema
   now and declare which skill leads into them, so there is nothing left to
   guess.
+
+  **`ship` moves it too, and the order is load-bearing.** `implement-ticket`
+  and `bugfix` *invoke* `/colormath:ship`, so both now move the ticket **before**
+  the handoff rather than after it: their move says the code is written, and
+  taking it through the PR pipeline is ship's move to make, one column further
+  on. Left the other way round, ship would move the ticket out of a column
+  `implement-ticket` had not yet left, and `implement-ticket` would then move it
+  back. Ship moves whether the PR merged **or is held** — held is the ordinary
+  outcome on a repo with no review workflow, and a move that happened only on a
+  merge would never happen there at all.
 
   A skill moves the ticket **only on success**, and never when the ticket is
   still in the backlog — a lane comes from a release or an initiative, and
@@ -108,11 +125,26 @@ Replace the old commands wherever they are written down:
 | `/colormath:refine-initiative <key>` | `/colormath:gather-requirements <key>` |
 | `/colormath:refine-ticket <key>` on a **task** | `/colormath:gather-requirements <key>` — and that is the whole of it |
 
-[Abacus](https://github.com/ColorMath/abacus) names both new skills on its
-Product board schema — `gather-requirements` moves work into **Designing**,
-`plan-ticket` into **Ready for Implementation** — and prints
-`plan-ticket <key>` as the hint on a ticket that is not yet ready. That change
-ships separately; until it merges, Abacus still prints the old name.
+[Abacus](https://github.com/ColorMath/abacus) names every one of these on its
+Product board schema, and that half has already shipped:
+
+```
+To Do                     →gather-requirements
+Designing                 →plan-ticket
+Ready for Implementation  →implement-ticket →bugfix
+Implementing              →ship
+Code Complete             ·qa
+Done
+```
+
+An arrow is a skill that moves work on; a dot is one run there that moves
+nothing. **Implementing is new on that board** — written code is not shipped
+code, so `ship` is what crosses into Code Complete. `qa` stays resident: a bug
+it finds is a bug, not a lane change. Abacus also prints `plan-ticket <key>` as
+the hint on a ticket that is not yet ready.
+
+Nothing here needs Abacus, though. A board whose schema names none of these
+skills is left alone, and every skill reports that rather than guessing.
 
 ## v4.2.0 — 2026-09-08
 
