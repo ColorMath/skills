@@ -58,7 +58,7 @@ a board column, a bookmark) stops resolving at that moment.
 
 - **The skills move the ticket now.** `gather-requirements`, `plan-ticket`,
   `implement-ticket`, `bugfix` and `ship` each move the ticket into the next
-  board column, so the board reflects what has actually happened instead of
+  board column, so the board reflects where the work actually is instead of
   waiting for somebody to drag a card.
 
   **They ask the board where to move it.** `get_board` returns the swimlanes in
@@ -82,15 +82,33 @@ a board column, a bookmark) stops resolving at that moment.
   now and declare which skill leads into them, so there is nothing left to
   guess.
 
+  **`implement-ticket` and `bugfix` move at the *start* of their runs**, not at
+  the end — `implement-ticket` right after the readiness gate and before it
+  reads a line of the code, `bugfix` after it has worked out what it was handed
+  and before it brings a stack up to reproduce anything. Implementing is a claim
+  in the present tense — somebody is on this — and a move made at the end is
+  never true while it is true: the ticket sits where it was filed through the
+  whole of the reading, reproducing, building and QA, which is exactly the
+  window in which a second person might pick the same work up, then flickers
+  through Implementing on its way to ship. A lane no ticket is ever observed in
+  is not doing anything.
+
+  Both keep the ticket's original `swimlane_id` and **move it back** on the
+  outcomes that are not a fix: `implement-ticket` when the plan no longer
+  describes the code and the ticket goes back to `plan-ticket` or
+  `gather-requirements`, `bugfix` when it cannot reproduce the defect and stops.
+  Neither is a failure — they are the honest endings — and a ticket left parked
+  in Implementing with nobody on it is a worse lie than the one moving early
+  fixes.
+
   **`ship` moves it too, and the order is load-bearing.** `implement-ticket`
-  and `bugfix` *invoke* `/colormath:ship`, so both now move the ticket **before**
-  the handoff rather than after it: their move says the code is written, and
-  taking it through the PR pipeline is ship's move to make, one column further
-  on. Left the other way round, ship would move the ticket out of a column
-  `implement-ticket` had not yet left, and `implement-ticket` would then move it
-  back. Ship moves whether the PR merged **or is held** — held is the ordinary
-  outcome on a repo with no review workflow, and a move that happened only on a
-  merge would never happen there at all.
+  and `bugfix` *invoke* `/colormath:ship`, so both already have the ticket in
+  their own column when they hand off. Taking the code through the PR pipeline
+  is ship's move to make, one column further on. Left the other way round, ship
+  would move the ticket out of a column the caller had not yet left, and the
+  caller would then move it back. Ship moves whether the PR merged **or is
+  held** — held is the ordinary outcome on a repo with no review workflow, and a
+  move that happened only on a merge would never happen there at all.
 
   A skill moves the ticket **only on success**, and never when the ticket is
   still in the backlog — a lane comes from a release or an initiative, and
