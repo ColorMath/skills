@@ -255,11 +255,13 @@ anything you deliberately left for a human.
 - **Then move it on.** Ask the board rather than naming a column:
   `mcp__abacus__get_board` with the ticket's `board_id` returns the swimlanes
   **in board order**, each with its `exit_commands` — the commands that move
-  work *on from* that column. One names this skill; match the part after the
-  colon (`bugfix`), since the plugin half is configuration. That lane is the one
-  the work **leaves**, so move the ticket to the **next** swimlane in the
-  returned order: `mcp__abacus__move_ticket` with its `swimlane_id` and
-  `position: 0`. Off by one here moves every ticket backwards.
+  work *on from* that column. Each entry says its `skill`, the whole `command`
+  line, and `leads_to`, the id of the swimlane it moves the ticket into. Find
+  the entry whose `skill` is `bugfix` — match that field, not the command line,
+  whose plugin half is configuration — and `mcp__abacus__move_ticket` with its
+  `leads_to` as the `swimlane_id` and `position: 0`. The destination is stated,
+  so do not count lanes: "the lane after the one I matched" is arithmetic whose
+  one wrong answer sends every ticket backwards.
 
   This was forbidden until Abacus columns came from a board schema, on the
   reasoning that lane meaning was per board and guessing was worse than leaving

@@ -273,15 +273,15 @@ say so.
 **Ask the board which column that is; never name one.** Call
 `mcp__abacus__get_board` with the ticket's `board_id`. It returns the swimlanes
 **in board order**, each carrying `exit_commands` — the commands that move work
-*on from* that column. Exactly one names this skill; match on the part after the
-colon (`gather-requirements`), because the plugin half is configuration and
-differs per board.
+*on from* that column. Each entry says its `skill`, the whole `command` line,
+and `leads_to` — the id of the swimlane that command moves the ticket into.
 
-That lane is the one this work **leaves**, so the ticket goes to the one
-**after** it: take the next swimlane in the returned order and
-`mcp__abacus__move_ticket` with its `swimlane_id` and `position: 0`. Getting
-this off by one moves every ticket backwards, so read the order rather than
-assuming it.
+Find the entry whose `skill` is `gather-requirements`; match on that field
+rather than on the command line, whose plugin half is configuration and differs
+per board. Then `mcp__abacus__move_ticket` with that entry's `leads_to` as the
+`swimlane_id`, and `position: 0`. The destination is stated, so do not count
+lanes yourself — "the one after the lane I matched" is arithmetic whose one
+wrong answer sends every ticket backwards.
 
 This used to be forbidden, and the reason it was is worth knowing: lane meaning
 was per board and free text, so one team's "In Review" was another's "Staging"
