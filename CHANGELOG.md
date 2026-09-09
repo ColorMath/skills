@@ -99,6 +99,31 @@ a board column, a bookmark) stops resolving at that moment.
   rather than retried. `plan-initiative` moves nothing itself; the `plan-ticket`
   calls it makes each move their own ticket.
 
+- **Every skill that has a ticket records that it ran.** On finishing, each
+  calls `record_metric` with `skill_invoked` and its own bare name as the
+  subject, so a ticket carries a count of the work done *against* it — which
+  Abacus cannot observe for itself, since nothing outside a skill's own run
+  knows it started ([abacus#101](https://github.com/ColorMath/abacus/pull/101)).
+
+  The counts worth having are the ones nobody wants. A ticket gathered four
+  times is a ticket whose requirements will not settle; a bug fixed twice is a
+  bug whose cause was never found. From the outside the fourth run looks exactly
+  like the first.
+
+  Recorded **once, at the end, and only on work actually done** — an interrupted
+  run and a hand-back both record nothing, because a run that did not happen
+  must not leave a row saying it did. `ship` records on a **held** PR as well as
+  a merged one: ship ran either way. `plan-initiative` records only itself; each
+  `plan-ticket` it invokes records its own run against its own child. Rows are
+  append-only and nobody can edit or delete one, so a wrong subject is
+  permanent.
+
+  **`/colormath:qa` records nothing, deliberately.** It takes a focus area, not
+  a ticket, and the only way to give `record_metric` an id would be to pick a
+  ticket the round happened to touch — a measurement filed against work it was
+  not a measurement of. The skill says so, so the gap is not mistaken for an
+  omission.
+
 - **The split is the contract.** `gather-requirements` owns `description` (and
   an initiative's features); `plan-ticket` owns `plan` and `qa_plan`. Neither
   writes the other's fields, so the requirements a plan is built on were

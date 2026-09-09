@@ -2,7 +2,7 @@
 name: plan-ticket
 description: Turn a ticket whose requirements are settled into one somebody could start on Monday — read it, investigate the code it touches at file-and-line level, settle the few implementation forks the requirements left open, then write back a file-anchored implementation plan and an executable QA plan. Use this whenever someone wants a ticket planned, made ready, starred, estimated, or "taken from a description to something I can pick up" — or names a ticket key (CM-00001) and asks how it would be built. Not for establishing what is being asked for (that's /colormath:gather-requirements), not for finding unknown problems in a feature (that's /colormath:qa), and not for implementing it — the planned ticket is the deliverable.
 argument-hint: [ticket key, e.g. CM-00001 — or enough of the title to find it]
-allowed-tools: Bash Read Grep Glob AskUserQuestion mcp__abacus__get_ticket mcp__abacus__update_ticket mcp__abacus__add_comment mcp__abacus__get_board mcp__abacus__move_ticket mcp__abacus__list_boards mcp__abacus__list_tickets mcp__abacus__list_members
+allowed-tools: Bash Read Grep Glob AskUserQuestion mcp__abacus__get_ticket mcp__abacus__record_metric mcp__abacus__update_ticket mcp__abacus__add_comment mcp__abacus__get_board mcp__abacus__move_ticket mcp__abacus__list_boards mcp__abacus__list_tickets mcp__abacus__list_members
 ---
 
 Plan the ticket named in "$ARGUMENTS" until someone else could pick it up cold
@@ -258,6 +258,32 @@ column it is in now, what you verified against the code versus assumed, the open
 questions that survived, and that `/colormath:implement-ticket` (or
 `/colormath:bugfix`, for a bug) is what takes it from here. Nothing here can
 delete a ticket — say so plainly if you're asked to.
+
+## 8. Record that you ran
+
+Abacus cannot see this happen. Nothing outside your own run knows a skill
+started, so a run you do not record did not happen as far as the ticket is
+concerned — and the counts worth having are the ones nobody wants: a ticket
+planned three times is a ticket whose description is too thin to plan against,
+and each attempt looks like the first.
+
+`mcp__abacus__record_metric` with the ticket's `id`, `metric: "skill_invoked"`,
+and `subject: "plan-ticket"` — the bare name, never the whole command, because
+the plugin half is configuration and differs per board.
+
+**Once, at the end, and only if you did the work.** Not on every turn and not
+when you begin — a skill that reports each time it thinks makes the count
+meaningless. If you were interrupted, or you handed back to `/colormath:gather-
+requirements` without writing a plan, record nothing: a run that did not happen
+must not leave a row saying it did.
+
+**The rows are append-only.** Nobody can edit or delete one, you included, so a
+wrong subject or a double-record is permanent. Get it right rather than
+expecting to correct it.
+
+If there is no ticket, or the call fails, say so in your report and carry on.
+The work is done either way, and a report claiming a measurement it did not
+take is worse than a missing row.
 
 ## Rules
 

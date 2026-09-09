@@ -2,7 +2,7 @@
 name: bugfix
 description: Take a bug report all the way from raw report to merged fix — establish the facts the report left out (which environment, which surface, the literal repro), reproduce the defect against the running stack, fix it at the layer the invariant belongs to, add a regression test that fails without the fix, assess whether the defect already corrupted stored data and remediate that in the same PR, then hand off to /colormath:ship. Use this whenever someone reports something broken — a ticket key for a filed bug, a bug report, a pasted stack trace or error log, "why is X doing Y", "users can't Z", a production incident, a written-up findings doc — even when they never say the word "bug". Not for sweeping a whole feature area for unknown problems (that's /colormath:qa), and not for shipping a branch that's already fixed (that's /colormath:ship).
 argument-hint: [a ticket key (CM-00012), or the report itself — prose, a pasted error/log, or a path to a report file]
-allowed-tools: Bash Read Edit Write Grep Glob Skill AskUserQuestion mcp__abacus__get_ticket mcp__abacus__add_comment mcp__abacus__get_board mcp__abacus__move_ticket mcp__abacus__list_boards mcp__abacus__list_tickets
+allowed-tools: Bash Read Edit Write Grep Glob Skill AskUserQuestion mcp__abacus__get_ticket mcp__abacus__record_metric mcp__abacus__add_comment mcp__abacus__get_board mcp__abacus__move_ticket mcp__abacus__list_boards mcp__abacus__list_tickets
 ---
 
 Turn the bug report in "$ARGUMENTS" into a merged fix.
@@ -256,6 +256,32 @@ carries what a reviewer needs and no reviewer can reconstruct on their own:
 **the report** as received, **the repro** you ran, **the cause** you found,
 **why the fix sits at that layer**, and **the data remediation** — including
 anything you deliberately left for a human.
+
+## 7. Record that you ran
+
+Abacus cannot see this happen. Nothing outside your own run knows a skill
+started, so a run you do not record did not happen as far as the ticket is
+concerned — and the counts worth having are the ones nobody wants: a bug fixed
+twice is a bug whose cause was never found, and the second fix reads exactly
+like the first.
+
+`mcp__abacus__record_metric` with the ticket's `id`, `metric: "skill_invoked"`,
+and `subject: "bugfix"` — the bare name, never the whole command, because the
+plugin half is configuration and differs per board.
+
+**Once, at the end, and only if you did the work.** Not on every turn and not
+when you begin — a skill that reports each time it thinks makes the count
+meaningless. If you were interrupted, or you stopped at step 2 because you
+could not reproduce it, record nothing: a run that did not happen must not
+leave a row saying it did.
+
+**The rows are append-only.** Nobody can edit or delete one, you included, so a
+wrong subject or a double-record is permanent. Get it right rather than
+expecting to correct it.
+
+If there is no ticket, or the call fails, say so in your report and carry on.
+The work is done either way, and a report claiming a measurement it did not
+take is worse than a missing row.
 
 ## Rules
 
