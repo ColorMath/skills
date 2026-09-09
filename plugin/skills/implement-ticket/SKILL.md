@@ -2,7 +2,7 @@
 name: implement-ticket
 description: Take a planned ticket all the way to a shipped PR — check its plan still matches the code, ask only what genuinely blocks, build it at the layer the plan names, execute its QA plan against the running stack, then hand off to /colormath:ship. Use this when someone says to implement, build, do, or work a ticket that has already been groomed, or names a ticket key and says "go". Not for grooming (that's /colormath:gather-requirements, then /colormath:plan-ticket) and not for a defect report (that's /colormath:bugfix).
 argument-hint: [ticket key, e.g. CM-00012]
-allowed-tools: Bash Read Edit Write Grep Glob Skill AskUserQuestion mcp__abacus__get_ticket mcp__abacus__add_comment mcp__abacus__list_boards mcp__abacus__list_tickets
+allowed-tools: Bash Read Edit Write Grep Glob Skill AskUserQuestion mcp__abacus__get_ticket mcp__abacus__add_comment mcp__abacus__get_board mcp__abacus__move_ticket mcp__abacus__list_boards mcp__abacus__list_tickets
 ---
 
 Implement the ticket in "$ARGUMENTS", QA it, and ship it.
@@ -137,13 +137,55 @@ document now says it passed.
 Restore what you mutated: rows you created, config you flipped, credentials you
 minted. Local state is yours to change and yours to put back.
 
-## 6. Ship it
+## 6. Move it on
+
+The code is written, so the board should say so — **and it has to say so before
+`ship` runs**, not after. `ship` moves the ticket on from the column this skill
+leaves it in, so a ticket still sitting in the previous column when ship starts
+gets moved from the wrong place. Do this first, then ship.
+
+**Ask the board where; never name a column.** Call
+`mcp__abacus__get_board` with the ticket's `board_id`. It returns the swimlanes
+**in board order**, each carrying `exit_commands` — the commands that move work
+*on from* that column. Each entry says its `skill`, the whole `command` line,
+and `leads_to` — the id of the swimlane that command moves the ticket into.
+
+Find the entry whose `skill` is `implement-ticket`; match on that field rather
+than on the command line, whose plugin half is configuration and differs per
+board. Then `mcp__abacus__move_ticket` with that entry's `leads_to` as the
+`swimlane_id`, and `position: 0`. The destination is stated, so do not count
+lanes yourself — "the one after the lane I matched" is arithmetic whose one
+wrong answer sends every ticket backwards.
+
+This used to be forbidden, and the reason is worth knowing: lane meaning was per
+board and free text, so one team's "In Review" was another's "Staging" and
+guessing at somebody's workflow was worse than leaving the ticket alone. Abacus
+columns now come from a board schema and say for themselves which skill leads
+into them, so there is nothing left to guess.
+
+**The move says the code is written, and only that.** Whether it then goes
+through the PR pipeline is `ship`'s move to make, one column further on — so do
+this as soon as the work is done and QA'd locally, before the PR exists.
+
+Three cases where you do not move it, each reported rather than retried:
+
+- **No column names this skill** — a Task Tracker names none, and neither does a
+  board on a schema that runs a different process. Say the board does not
+  describe this step.
+- **The ticket is in no column at all.** The move is refused: *"Plan this ticket
+  for a release, or file it under an initiative, before giving it a status."*
+  That is correct; report it.
+- **The move fails otherwise.** Say so plainly. A ticket in the wrong column is
+  a smaller problem than a report claiming a move that did not happen.
+
+## 7. Ship it
 
 Run the repo's full local gate mirror once (`make preflight`) so an avoidable
 failure does not cost a CI round trip. Then invoke `/colormath:ship`, which
 takes it the rest of the way: PR, gates, the review, a second pass over this
-same QA plan against the running stack, fixes for what turns up, and either an
-auto-merge when the PR is genuinely clean or a hold with the reason.
+same QA plan against the running stack, fixes for what turns up, either an
+auto-merge when the PR is genuinely clean or a hold with the reason — and the
+next move on the board.
 
 Give ship a title naming the change in the ticket's own terms, and a body that
 carries what a reviewer cannot reconstruct: **the ticket key and what it asked
@@ -155,11 +197,6 @@ link, whether it merged or is held, and the deviations. That comment is how the
 ticket stops being a plan and becomes a record. Leave the ticket's own fields
 alone: `plan` and `qa_plan` are what was intended, and the comment is what
 happened.
-
-Do not move the ticket between lanes. Lane meaning is per board — one team's
-"In Review" is another's "Staging" — and guessing at somebody's workflow is
-worse than leaving it where they put it. Say what you would have moved it to, if
-it seems useful, and let them.
 
 ## Rules
 

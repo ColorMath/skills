@@ -2,7 +2,7 @@
 name: bugfix
 description: Take a bug report all the way from raw report to merged fix — establish the facts the report left out (which environment, which surface, the literal repro), reproduce the defect against the running stack, fix it at the layer the invariant belongs to, add a regression test that fails without the fix, assess whether the defect already corrupted stored data and remediate that in the same PR, then hand off to /colormath:ship. Use this whenever someone reports something broken — a ticket key for a filed bug, a bug report, a pasted stack trace or error log, "why is X doing Y", "users can't Z", a production incident, a written-up findings doc — even when they never say the word "bug". Not for sweeping a whole feature area for unknown problems (that's /colormath:qa), and not for shipping a branch that's already fixed (that's /colormath:ship).
 argument-hint: [a ticket key (CM-00012), or the report itself — prose, a pasted error/log, or a path to a report file]
-allowed-tools: Bash Read Edit Write Grep Glob Skill AskUserQuestion mcp__abacus__get_ticket mcp__abacus__add_comment mcp__abacus__list_boards mcp__abacus__list_tickets
+allowed-tools: Bash Read Edit Write Grep Glob Skill AskUserQuestion mcp__abacus__get_ticket mcp__abacus__add_comment mcp__abacus__get_board mcp__abacus__move_ticket mcp__abacus__list_boards mcp__abacus__list_tickets
 ---
 
 Turn the bug report in "$ARGUMENTS" into a merged fix.
@@ -215,15 +215,41 @@ Ask: could this defect have written bad rows, files, or cached values? If so:
 - **Never run it against production yourself.** Ship it as a migration or a
   reviewed script, following the repo's migration conventions.
 
-## 6. Ship it
+## 6. Move it on, then ship it
 
 - Commit on a branch — `fix/<short-slug>` — never on the default branch.
+- **Move the ticket, before handing off.** `ship` moves it on from the column
+  this skill leaves it in, so a ticket still in the previous column when ship
+  starts gets moved from the wrong place. Ask the board rather than naming a
+  column: `mcp__abacus__get_board` with the ticket's `board_id` returns the
+  swimlanes **in board order**, each with its `exit_commands` — the commands
+  that move work *on from* that column. Each entry says its `skill`, the whole
+  `command` line, and `leads_to`, the id of the swimlane it moves the ticket
+  into. Find the entry whose `skill` is `bugfix` — match that field, not the
+  command line, whose plugin half is configuration — and
+  `mcp__abacus__move_ticket` with its `leads_to` as the `swimlane_id` and
+  `position: 0`. The destination is stated, so do not count lanes: "the lane
+  after the one I matched" is arithmetic whose one wrong answer sends every
+  ticket backwards.
+
+  This was forbidden until Abacus columns came from a board schema, on the
+  reasoning that lane meaning was per board and guessing was worse than leaving
+  the ticket alone. The column says which skill leads into it now, so there is
+  nothing to guess. The move says the fix is written, and only that — whether it
+  then goes through the PR pipeline is ship's move to make, one column further
+  on.
+
+  Do not move it, and say why, when no column names this skill (a Task Tracker
+  names none), when the ticket is in no column and the move is refused with
+  *"Plan this ticket for a release, or file it under an initiative, before
+  giving it a status"*, or when it fails for any other reason. A bug reported
+  straight into the backlog is the common case for the second one.
 - Run the repo's full local gate mirror once (`make preflight`) before handing
   off, so an avoidable failure doesn't cost a CI round trip.
 - Then invoke `/colormath:ship`, which takes it the rest of the way: PR, gates,
   review, the ticket's QA plan executed against the running stack, fixes for
-  anything that turns up, and either an auto-merge when it's genuinely clean or
-  a hold with the reason.
+  anything that turns up, either an auto-merge when it's genuinely clean or a
+  hold with the reason — and the next move on the board.
 
 Give ship a PR title naming the user-visible symptom, and make sure the body
 carries what a reviewer needs and no reviewer can reconstruct on their own:
@@ -251,7 +277,6 @@ anything you deliberately left for a human.
   `add_comment` with the outcome — the PR link, whether it merged or is held,
   the cause you found, and what you deliberately left alone. Leave the ticket's
   own fields alone: the description is what was reported, and the comment is
-  what happened. Do not move it between lanes; lane meaning is per board and
-  the person who filed it decides when it is done.
+  what happened.
 - Your job ends where `/colormath:ship` takes over, and ship's own rules apply
   from there.

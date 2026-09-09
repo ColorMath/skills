@@ -1,8 +1,8 @@
 ---
 name: ship
-description: Open a PR, wait for the gates and the review, then QA the change against a running stack from the ticket's QA plan in Abacus (writing one if the ticket has none), fix every finding — blockers included — then decide once, auto-merging when clean or holding for a human. Never re-triggers the review.
+description: Open a PR, wait for the gates and the review, then QA the change against a running stack from the ticket's QA plan in Abacus (writing one if the ticket has none), fix every finding — blockers included — then move the ticket on in Abacus and decide once, auto-merging when clean or holding for a human. Never re-triggers the review.
 argument-hint: [optional PR title]
-allowed-tools: Bash Read Edit Write Grep Glob Skill AskUserQuestion mcp__abacus__get_ticket mcp__abacus__update_ticket mcp__abacus__add_comment mcp__abacus__list_boards mcp__abacus__list_tickets mcp__abacus__get_board mcp__abacus__link_pull_request
+allowed-tools: Bash Read Edit Write Grep Glob Skill AskUserQuestion mcp__abacus__get_ticket mcp__abacus__update_ticket mcp__abacus__add_comment mcp__abacus__list_boards mcp__abacus__list_tickets mcp__abacus__get_board mcp__abacus__link_pull_request mcp__abacus__move_ticket
 model: claude-sonnet-4-6
 ---
 
@@ -15,8 +15,8 @@ the review and the QA turn up — blockers included, without asking — and end 
 holds and asks for a human. Use the `gh` CLI for every GitHub operation. Give me
 a one-line status at each step.
 
-The shape is linear and runs **once**: review → respond + QA → decide. There is
-no second review round; see step 5.
+The shape is linear and runs **once**: review → respond + QA → move → decide.
+There is no second review round; see step 5.
 
 Broad `Bash` is in `allowed-tools` on purpose: step 4 drives the local stack
 (`make up`, DB queries, `curl`, throwaway driver scripts) to actually run the
@@ -52,7 +52,7 @@ Three things that decide what to do when it does not go cleanly:
 - **A repository that is not connected to the board is a hold, not a guess.**
   Do not link to whichever repository the board happens to have, and do not link
   to the only one when there are several — a wrong link is worse than none.
-  Record it and carry it to step 7.
+  Record it and carry it to step 8.
 - **Any other failure is reported and carried forward, never swallowed.** Do not
   abandon a green PR because a link failed; do not quietly continue either. Step
   7 weighs it.
@@ -77,7 +77,7 @@ First check whether this repo runs the colormath review workflow: look for a
 workflow under `.github/workflows/` whose job `uses:`
 `ColorMath/ci/.github/workflows/review.yml`. If there is none, go straight to
 step 4 with whatever formal reviews exist and say explicitly that no automated
-review is configured. Note for step 7: with no automated review to stand on, a
+review is configured. Note for step 8: with no automated review to stand on, a
 clean QA run is not on its own enough — the merge decision **holds**.
 
 QA is **not** part of this workflow and never blocks this step. It comes from
@@ -115,7 +115,7 @@ done
   - `SKIPPED` — the workflow's `triage` job decided every changed file matches
     its `skip-paths` (docs, lockfiles), so there was no code to audit. This is a
     deliberate decision, not a failure: there are no findings because there was
-    nothing reviewable, and step 7's first gate is satisfied. Check
+    nothing reviewable, and step 8's first gate is satisfied. Check
     `review / triage`'s step summary to see the file list it judged, and say in
     your report that the review was skipped and why. If that summary lists files
     you consider real code, treat it as a misconfigured `skip-paths` and tell me
@@ -253,7 +253,7 @@ fix or paper over one:
 - A **structural / "code judo"** restructuring spanning multiple modules, or
   anything a reviewer raised as `CHANGES_REQUESTED` on substantive design
   grounds.
-Leave those unfixed and record them clearly. They are what step 7 weighs when
+Leave those unfixed and record them clearly. They are what step 8 weighs when
 it decides whether to hold the merge — an honest "deferred to a human" is fine;
 a silent skip is not.
 
@@ -276,7 +276,8 @@ plan, and another re-review. That loop has no exit condition.
 
 You do not need a reviewer to bless your fixes — **you** re-verified them
 against the running system, and the gates re-ran green on the new commit. That
-is the evidence step 7 judges. Go straight there.
+is the evidence step 8 judges. Carry on through steps 6 and 7 to it, and do
+not detour back through the review.
 
 (A *human* who reviews after your fixes is different: read and address anything
 they add, exactly as in step 5. This rule is only about not summoning another
@@ -288,12 +289,54 @@ the rows and files you created, revoke any credentials you minted, restore any
 config or feature flag you changed, and confirm the baseline from step 4
 matches. QA debris poisons the next run, and a flipped provider or flag left
 flipped is its own outage. Restoring does not erase the QA *result* you already
-recorded — step 7 still knows whether QA passed. Show me the restored state in
+recorded — step 8 still knows whether QA passed. Show me the restored state in
 your final report. (Skip only if you mutated nothing.)
 
-## 7. Merge decision — auto-merge, or hold and explain
-The go/no-go, and the one place this skill merges. Reach it directly from step
-5/6 — **never** via another review round. Decide from what you already have: the
+## 7. Move the ticket to the column ship leads into
+The branch is through the pipeline, so the board should say so — and this is the
+only skill that can say it. `implement-ticket` and `bugfix` move a ticket when
+the code is *written*; what turns written code into code complete is this run:
+the PR, the gates, the review, the QA, the fixes. That is a step no other skill
+can report, which is why it is a step here rather than a line in the caller's
+report.
+
+**Do it whether the PR merged or is held.** Held is the ordinary outcome — a
+repo with no review workflow holds every time by gate 1 — and a ticket that only
+moved on a merge would never move on those repos at all. What the move claims is
+that the change went through the pipeline; whether a human has clicked merge is
+what the comment and step 8's report say.
+
+**Ask the board where; never name a column.** Call `mcp__abacus__get_board` with
+the ticket's `board_id`. It returns the swimlanes **in board order**, each
+carrying `exit_commands` — the commands that move work *on from* that column.
+Each entry says its `skill`, the whole `command` line, and `leads_to`, the id of
+the swimlane it moves the ticket into. Find the entry whose `skill` is `ship` —
+match that field, not the command line, whose plugin half is configuration —
+and `mcp__abacus__move_ticket` with its `leads_to` as the `swimlane_id` and
+`position: 0`. The destination is stated, so do not count lanes: "the lane after
+the one I matched" is arithmetic whose one wrong answer sends every ticket
+backwards.
+
+Four cases where you do **not** move it, each reported rather than retried:
+
+- **There is no ticket.** Step 4's case (c). Nothing to move, and inventing one
+  to hold the move is worse than the missing row.
+- **No column names this skill.** A Task Tracker names none, and neither does a
+  board on a schema that runs a different process. Say the board does not
+  describe this step.
+- **The ticket is in no column at all.** The move is refused: *"Plan this ticket
+  for a release, or file it under an initiative, before giving it a status."*
+  That is correct — a lane comes from a release or an initiative. Report it.
+- **The move fails for any other reason.** Say so plainly. The PR is what it is
+  either way, and a ticket in the wrong column is a smaller problem than a
+  report claiming a move that did not happen.
+
+None of these blocks the merge decision below. The board being wrong is worth
+saying out loud; it is not a reason to hold a clean PR.
+
+## 8. Merge decision — auto-merge, or hold and explain
+The go/no-go, and the one place this skill merges. Reach it directly from steps
+5–7 — **never** via another review round. Decide from what you already have: the
 single thermonuclear review, your responses to it, your QA results, and the
 gates on the current commit.
 
@@ -367,20 +410,21 @@ the default branch.
 
 ## Rules
 - **Never push to the default branch** (`git push origin main`). Merging a PR
-  via `gh pr merge` in step 7 is the sanctioned way to land it — that is not the
+  via `gh pr merge` in step 8 is the sanctioned way to land it — that is not the
   same thing.
 - **Fix automatically; don't ask before fixing.** Blockers included (step 5) —
   fixing a Blocker is automatic, *merging* after one is not. Auto-merge happens
-  **only** from step 7, **only** with all three gates satisfied, and **always**
-  with a PR comment posted first. If any gate fails, hold and explain — never
+  **only** from step 8, **only** with all four of its gates satisfied, and
+  **always** with a PR comment posted first. If any gate fails, hold and explain — never
   merge on a silent or failed review, or on QA that couldn't run.
 - **One review per run.** Read the thermonuclear review once (step 3), respond
-  to it and do the QA (steps 4–5), then decide (step 7). Never comment `@claude`
+  to it and do the QA (steps 4–5), then move the ticket and decide (steps
+  7–8). Never comment `@claude`
   to request a re-review — it restarts fixes, QA and review in a cycle that does
   not terminate.
 - **QA always runs.** A ticket without a `qa_plan`, or a PR without a ticket, is
   a plan for you to write (step 4) — never a reason to skip QA.
-- **An agent always links its PR.** Step 1 records it on the ticket and step 7
+- **An agent always links its PR.** Step 1 records it on the ticket and step 8
   refuses to merge without it. Both halves are needed: the instruction is what
   makes it happen, the gate is what makes "always" true. A branch with no ticket
   is the one case where there is nothing to link, and it is not a hold.
