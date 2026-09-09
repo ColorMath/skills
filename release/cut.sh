@@ -75,19 +75,48 @@ note "in sync with origin/main"
 gh auth status >/dev/null 2>&1 || die "gh is not authenticated (run: gh auth login)"
 note "gh is authenticated"
 
+# A run that has not finished has NO conclusion, and gh reports that as an empty
+# string rather than as null — so `.conclusion // "none"` does not fire, because
+# jq's `//` only substitutes null and false and "" is truthy. Keying on the
+# conclusion alone therefore reported a still-running CI as a *failed* one and
+# sent the releaser to look at a failure that did not exist. Read `status` and
+# decide on that first; the conclusion only means anything once it is
+# `completed`.
 if [ "${COLORMATH_SKIP_CI_CHECK:-0}" != "1" ]; then
 	sha=$(git rev-parse HEAD)
-	conclusion=$(gh run list --workflow=CI --branch=main --limit=20 \
+	read -r ci_status ci_conclusion <<<"$(gh run list --workflow=CI --branch=main --limit=20 \
 		--json headSha,conclusion,status \
-		--jq "[.[] | select(.headSha == \"$sha\")] | first | .conclusion // \"none\"" 2>/dev/null || echo none)
-	case "$conclusion" in
-	success) note "CI is green on $sha" ;;
-	none) die "no CI run found for $sha — wait for CI, or set COLORMATH_SKIP_CI_CHECK=1" ;;
-	*) die "the CI run for $sha concluded '$conclusion' — fix main before releasing" ;;
+		--jq "[.[] | select(.headSha == \"$sha\")] | first | \"\(.status // \"none\") \(.conclusion // \"\")\"" 2>/dev/null || echo "none ")"
+	case "$ci_status" in
+	none | "")
+		die "no CI run found for $sha — wait for CI, or set COLORMATH_SKIP_CI_CHECK=1"
+		;;
+	completed)
+		[ "$ci_conclusion" = success ] ||
+			die "the CI run for $sha concluded '$ci_conclusion' — fix main before releasing"
+		note "CI is green on $sha"
+		;;
+	*)
+		die "CI for $sha is still $ci_status — wait for it to finish, then rerun"
+		;;
 	esac
 else
 	note "CI check skipped (COLORMATH_SKIP_CI_CHECK=1)"
 fi
+
+# An empty Unreleased section means there is nothing to release. notes.sh
+# already refuses to write empty release notes, but it does not run until after
+# the release commit exists, which leaves a stray local commit to clean up. It
+# is a precondition, so check it here where the tree is still untouched.
+changelog_has_unreleased || die "CHANGELOG.md has no '## Unreleased' section"
+if [ -z "$(awk '
+	/^## Unreleased[[:space:]]*$/ { in_section = 1; next }
+	in_section && /^## / { exit }
+	in_section { print }
+' "$CHANGELOG" | tr -d '[:space:]')" ]; then
+	die "CHANGELOG.md's '## Unreleased' section is empty — nothing to release"
+fi
+note "Unreleased has something in it"
 
 # --- verify the baseline ----------------------------------------------------
 
