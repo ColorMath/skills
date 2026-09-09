@@ -18,6 +18,97 @@ which still covers the gates. This repo's history begins at the extraction.
 
 ## Unreleased
 
+MINOR. Two new steps in existing skills, and both are about a ticket telling
+the truth about itself while the work is happening rather than afterwards.
+
+### Changed
+
+- **`implement-ticket` and `bugfix` claim the ticket when they start.** Both
+  moved it into Implementing at the very end of their runs, immediately before
+  handing off to `ship`. That column is a claim in the present tense — somebody
+  is on this — and a move made at the end was never true while it was true: the
+  ticket sat where it was filed through the whole of the reading, reproducing,
+  building and QA, which is exactly the window in which a second person might
+  pick the same work up, and then flickered through Implementing on its way to
+  ship. A lane no ticket is ever observed in is not doing anything.
+
+  The move is now `implement-ticket`'s step 2, right after the readiness gate
+  and before it reads a line of the code, and `bugfix`'s step 2, once it knows
+  what it was handed and before it brings a stack up. Each skill's gate is what
+  makes going first safe: by then the ticket exists, can be worked, and is going
+  to be.
+
+  Both keep the ticket's original `swimlane_id` and **move it back** on the
+  endings that are not a fix — `implement-ticket` when the plan no longer
+  describes the code and the ticket goes back to `plan-ticket` or
+  `gather-requirements`, `bugfix` when it cannot reproduce the defect and stops.
+  Those are the honest outcomes, and a ticket parked in Implementing with nobody
+  on it is a worse lie than the one moving early corrects.
+
+  `ship` is unchanged and needed no change: it matches its own `skill` in
+  `exit_commands` and moves the ticket on from whatever column it finds it in,
+  which is the same column either caller left it in — just claimed earlier. The
+  ordering v5.0.0 made load-bearing still holds.
+
+### Added
+
+- **Every skill that has a ticket records that it ran.** On finishing, each
+  calls `record_metric` with `skill_invoked` and its own bare name as the
+  subject, so a ticket carries a count of the work done *against* it — which
+  Abacus cannot observe for itself, since nothing outside a skill's own run
+  knows it started ([abacus#101](https://github.com/ColorMath/abacus/pull/101)).
+
+  The counts worth having are the ones nobody wants. A ticket gathered four
+  times is a ticket whose requirements will not settle; a bug fixed twice is a
+  bug whose cause was never found. From the outside the fourth run looks exactly
+  like the first.
+
+  Recorded **once, at the end, and only on work actually done** — an interrupted
+  run and a hand-back both record nothing, because a run that did not happen
+  must not leave a row saying it did. `ship` records on a **held** PR as well as
+  a merged one: ship ran either way. `plan-initiative` records only itself; each
+  `plan-ticket` it invokes records its own run against its own child. Rows are
+  append-only and nobody can edit or delete one, so a wrong subject is
+  permanent.
+
+  A metric and the board move above point opposite ways in time, and are not in
+  tension: a column is a claim about what is happening now, so it is only useful
+  said early, while a metric is a record of what happened, which cannot be
+  written until it has.
+
+  **`/colormath:qa` records nothing, deliberately.** It takes a focus area, not
+  a ticket, and the only way to give `record_metric` an id would be to pick a
+  ticket the round happened to touch — a measurement filed against work it was
+  not a measurement of. The skill says so, so the gap is not mistaken for an
+  omission.
+
+### Fixed
+
+- **`cut.sh` no longer reports a still-running CI as a failed one.** It read the
+  CI run's `conclusion` and nothing else, and `gh` reports an unfinished run's
+  conclusion as an **empty string** rather than as null — so the `// "none"`
+  fallback never fired, because jq's `//` substitutes only null and false and
+  `""` is truthy. A release dispatched while CI was still going therefore died
+  with *"the CI run for <sha> concluded '' — fix main before releasing"*, which
+  sent the releaser to look at a failure that did not exist. It now reads
+  `status` first — already fetched and previously unused — and says *"CI for
+  <sha> is still in_progress — wait for it to finish, then rerun"*.
+
+- **`cut.sh` refuses to cut an empty `## Unreleased` section.** `notes.sh`
+  already declines to write empty release notes, but it does not run until after
+  the release commit exists, so the failure left a stray local commit to clean
+  up. It is a precondition, and is now checked with the tree still untouched.
+  The check belongs there rather than in `verify.sh`, which runs on every PR and
+  would fail main for the whole legitimate window between a cut and the next
+  merge.
+
+- **The v5.0.0 changelog section describes v5.0.0 again.** The two entries above
+  were written under `## Unreleased` on branches cut before v5.0.0 was, and the
+  release renamed that heading while they were in flight; git merged the rename
+  and the bodies without a conflict, so both entries landed inside the released
+  section. The published `v5.0.0` tag and GitHub Release never contained them —
+  only the file on `main` had drifted.
+
 ## v5.0.0 — 2026-09-09
 
 MAJOR. **Grooming splits into two skills.** `/colormath:refine-ticket` and
@@ -58,7 +149,7 @@ a board column, a bookmark) stops resolving at that moment.
 
 - **The skills move the ticket now.** `gather-requirements`, `plan-ticket`,
   `implement-ticket`, `bugfix` and `ship` each move the ticket into the next
-  board column, so the board reflects where the work actually is instead of
+  board column, so the board reflects what has actually happened instead of
   waiting for somebody to drag a card.
 
   **They ask the board where to move it.** `get_board` returns the swimlanes in
@@ -82,33 +173,15 @@ a board column, a bookmark) stops resolving at that moment.
   now and declare which skill leads into them, so there is nothing left to
   guess.
 
-  **`implement-ticket` and `bugfix` move at the *start* of their runs**, not at
-  the end — `implement-ticket` right after the readiness gate and before it
-  reads a line of the code, `bugfix` after it has worked out what it was handed
-  and before it brings a stack up to reproduce anything. Implementing is a claim
-  in the present tense — somebody is on this — and a move made at the end is
-  never true while it is true: the ticket sits where it was filed through the
-  whole of the reading, reproducing, building and QA, which is exactly the
-  window in which a second person might pick the same work up, then flickers
-  through Implementing on its way to ship. A lane no ticket is ever observed in
-  is not doing anything.
-
-  Both keep the ticket's original `swimlane_id` and **move it back** on the
-  outcomes that are not a fix: `implement-ticket` when the plan no longer
-  describes the code and the ticket goes back to `plan-ticket` or
-  `gather-requirements`, `bugfix` when it cannot reproduce the defect and stops.
-  Neither is a failure — they are the honest endings — and a ticket left parked
-  in Implementing with nobody on it is a worse lie than the one moving early
-  fixes.
-
   **`ship` moves it too, and the order is load-bearing.** `implement-ticket`
-  and `bugfix` *invoke* `/colormath:ship`, so both already have the ticket in
-  their own column when they hand off. Taking the code through the PR pipeline
-  is ship's move to make, one column further on. Left the other way round, ship
-  would move the ticket out of a column the caller had not yet left, and the
-  caller would then move it back. Ship moves whether the PR merged **or is
-  held** — held is the ordinary outcome on a repo with no review workflow, and a
-  move that happened only on a merge would never happen there at all.
+  and `bugfix` *invoke* `/colormath:ship`, so both now move the ticket **before**
+  the handoff rather than after it: their move says the code is written, and
+  taking it through the PR pipeline is ship's move to make, one column further
+  on. Left the other way round, ship would move the ticket out of a column
+  `implement-ticket` had not yet left, and `implement-ticket` would then move it
+  back. Ship moves whether the PR merged **or is held** — held is the ordinary
+  outcome on a repo with no review workflow, and a move that happened only on a
+  merge would never happen there at all.
 
   A skill moves the ticket **only on success**, and never when the ticket is
   still in the backlog — a lane comes from a release or an initiative, and
@@ -116,31 +189,6 @@ a board column, a bookmark) stops resolving at that moment.
   under an initiative, before giving it a status."* Both cases are reported
   rather than retried. `plan-initiative` moves nothing itself; the `plan-ticket`
   calls it makes each move their own ticket.
-
-- **Every skill that has a ticket records that it ran.** On finishing, each
-  calls `record_metric` with `skill_invoked` and its own bare name as the
-  subject, so a ticket carries a count of the work done *against* it — which
-  Abacus cannot observe for itself, since nothing outside a skill's own run
-  knows it started ([abacus#101](https://github.com/ColorMath/abacus/pull/101)).
-
-  The counts worth having are the ones nobody wants. A ticket gathered four
-  times is a ticket whose requirements will not settle; a bug fixed twice is a
-  bug whose cause was never found. From the outside the fourth run looks exactly
-  like the first.
-
-  Recorded **once, at the end, and only on work actually done** — an interrupted
-  run and a hand-back both record nothing, because a run that did not happen
-  must not leave a row saying it did. `ship` records on a **held** PR as well as
-  a merged one: ship ran either way. `plan-initiative` records only itself; each
-  `plan-ticket` it invokes records its own run against its own child. Rows are
-  append-only and nobody can edit or delete one, so a wrong subject is
-  permanent.
-
-  **`/colormath:qa` records nothing, deliberately.** It takes a focus area, not
-  a ticket, and the only way to give `record_metric` an id would be to pick a
-  ticket the round happened to touch — a measurement filed against work it was
-  not a measurement of. The skill says so, so the gap is not mistaken for an
-  omission.
 
 - **The split is the contract.** `gather-requirements` owns `description` (and
   an initiative's features); `plan-ticket` owns `plan` and `qa_plan`. Neither
