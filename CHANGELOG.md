@@ -18,6 +18,8 @@ which still covers the gates. This repo's history begins at the extraction.
 
 ## Unreleased
 
+## v5.0.0 — 2026-09-09
+
 MAJOR. **Grooming splits into two skills.** `/colormath:refine-ticket` and
 `/colormath:refine-initiative` are gone, replaced by
 `/colormath:gather-requirements` and `/colormath:plan-ticket`. Skill renames
