@@ -2,7 +2,7 @@
 name: ship
 description: Open a PR, wait for the gates and the review, then QA the change against a running stack from the ticket's QA plan in Abacus (writing one if the ticket has none), fix every finding — blockers included — then move the ticket on in Abacus and decide once, auto-merging when clean or holding for a human. Never re-triggers the review.
 argument-hint: [optional PR title]
-allowed-tools: Bash Read Edit Write Grep Glob Skill AskUserQuestion mcp__abacus__get_ticket mcp__abacus__update_ticket mcp__abacus__add_comment mcp__abacus__list_boards mcp__abacus__list_tickets mcp__abacus__get_board mcp__abacus__link_pull_request mcp__abacus__move_ticket
+allowed-tools: Bash Read Edit Write Grep Glob Skill AskUserQuestion mcp__abacus__get_ticket mcp__abacus__record_metric mcp__abacus__update_ticket mcp__abacus__add_comment mcp__abacus__list_boards mcp__abacus__list_tickets mcp__abacus__get_board mcp__abacus__link_pull_request mcp__abacus__move_ticket
 model: claude-sonnet-4-6
 ---
 
@@ -15,8 +15,8 @@ the review and the QA turn up — blockers included, without asking — and end 
 holds and asks for a human. Use the `gh` CLI for every GitHub operation. Give me
 a one-line status at each step.
 
-The shape is linear and runs **once**: review → respond + QA → move → decide.
-There is no second review round; see step 5.
+The shape is linear and runs **once**: review → respond + QA → tell Abacus →
+decide. There is no second review round; see step 5.
 
 Broad `Bash` is in `allowed-tools` on purpose: step 4 drives the local stack
 (`make up`, DB queries, `curl`, throwaway driver scripts) to actually run the
@@ -292,7 +292,13 @@ flipped is its own outage. Restoring does not erase the QA *result* you already
 recorded — step 8 still knows whether QA passed. Show me the restored state in
 your final report. (Skip only if you mutated nothing.)
 
-## 7. Move the ticket to the column ship leads into
+## 7. Tell Abacus what this run did
+Two writes against the ticket, both about this run and neither about the diff:
+where the work now sits, and that ship was run on it. Do them together, here,
+rather than after step 8 — the hold path ends with STOP, and a step behind a
+STOP is a step that does not always happen.
+
+### Move it to the column ship leads into
 The branch is through the pipeline, so the board should say so — and this is the
 only skill that can say it. `implement-ticket` and `bugfix` move a ticket when
 the code is *written*; what turns written code into code complete is this run:
@@ -333,6 +339,36 @@ Four cases where you do **not** move it, each reported rather than retried:
 
 None of these blocks the merge decision below. The board being wrong is worth
 saying out loud; it is not a reason to hold a clean PR.
+
+### Record that you ran
+Abacus cannot see this happen. Nothing outside your own run knows a skill
+started, so a run you do not record did not happen as far as the ticket is
+concerned — and the counts worth having are the ones nobody wants: a ticket
+shipped three times is a ticket that came back twice, and each attempt looks
+like the first from the outside.
+
+`mcp__abacus__record_metric` with the ticket's `id`, `metric: "skill_invoked"`,
+and `subject: "ship"` — the bare name, never the whole command, because the
+plugin half is configuration and differs per board.
+
+**Once, at the end, and only if you did the work.** Not on every turn and not
+when you begin — a skill that reports each time it thinks makes the count
+meaningless. If you were interrupted, or you never got as far as opening the PR,
+record nothing: a run that did not happen must not leave a row saying it did. A
+**held** PR did happen, so it records — the row says ship ran, and step 8's
+report says how it came out.
+
+**The rows are append-only.** Nobody can edit or delete one, you included, so a
+wrong subject or a double-record is permanent. Get it right rather than
+expecting to correct it.
+
+**Record it even when the move above was refused**, and even when there is no
+column naming this skill — the two are separate claims, and a board that does
+not run this process still holds a ticket somebody ran ship against. The one
+case that stops both is the one that stops everything here: no ticket at all.
+
+If the call fails, say so in your report and carry on. It does not block the
+merge decision, for the same reason the move does not.
 
 ## 8. Merge decision — auto-merge, or hold and explain
 The go/no-go, and the one place this skill merges. Reach it directly from steps

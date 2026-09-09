@@ -155,6 +155,18 @@ merge recommendation; merging stays the user's decision.
 
 If the user declined every finding, don't ship — summarize and stop.
 
+**You record no measurement, and that is deliberate.** Every other skill in this
+plugin finishes by recording a `skill_invoked` metric against the ticket it was
+run on. This one has no ticket: it takes a focus area and sweeps it for problems
+nobody has filed yet, which is the whole difference between it and
+`/colormath:bugfix`. `record_metric` needs a `ticket_id`, and the only way to
+give it one would be to pick a ticket the round touched — a measurement filed
+against work it was not a measurement of.
+
+If a round produces findings that become tickets, those tickets get their own
+runs recorded by the skills that work them. The `ship` you hand off to records
+its own. Nothing here is missing; do not add it.
+
 ## Judgement
 
 **Depth beats breadth.** Six proven findings in one flow are worth more than

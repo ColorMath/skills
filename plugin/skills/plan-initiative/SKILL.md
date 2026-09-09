@@ -2,7 +2,7 @@
 name: plan-initiative
 description: Plan every ticket in an initiative, one at a time and in build order, by running plan-ticket over each of them with the initiative's context injected — where this ticket sits in the sequence, what comes before and after it, and every decision already settled. Use this once an initiative has started building and its tickets exist, when someone wants the whole initiative planned, made ready, starred, or "taken from a list of titles to something the team can pick up". Finishes only when every plannable ticket in the initiative carries both an implementation plan and a QA plan.
 argument-hint: [initiative key, e.g. CM-00007]
-allowed-tools: Bash Read Grep Glob Skill AskUserQuestion mcp__abacus__get_ticket mcp__abacus__add_comment mcp__abacus__list_boards mcp__abacus__list_tickets
+allowed-tools: Bash Read Grep Glob Skill AskUserQuestion mcp__abacus__get_ticket mcp__abacus__record_metric mcp__abacus__add_comment mcp__abacus__list_boards mcp__abacus__list_tickets
 ---
 
 Plan every ticket under the initiative in "$ARGUMENTS", one at a time, until
@@ -154,6 +154,36 @@ rejected approach, a split, a sequencing constraint that emerged —
 `add_comment` on the
 **initiative** is its home, so the next person reading it finds the reasoning
 without opening seven tickets.
+
+## 5. Record that you ran
+
+Abacus cannot see this happen. Nothing outside your own run knows a skill
+started, so a run you do not record did not happen as far as the ticket is
+concerned — and the counts worth having are the ones nobody wants: an
+initiative replanned twice is one whose feature definitions did not survive
+contact with the code.
+
+`mcp__abacus__record_metric` with the ticket's `id`, `metric: "skill_invoked"`,
+and `subject: "plan-initiative"` — the bare name, never the whole command,
+because the plugin half is configuration and differs per board.
+
+**Once, at the end, and only if you did the work.** Not on every turn and not
+when you begin — a skill that reports each time it thinks makes the count
+meaningless. If you were interrupted before the run finished, record nothing: a
+run that did not happen must not leave a row saying it did.
+
+**The rows are append-only.** Nobody can edit or delete one, you included, so a
+wrong subject or a double-record is permanent. Get it right rather than
+expecting to correct it.
+
+**Record the initiative, and only the initiative.** Each `plan-ticket` you
+invoke records its own run against its own child — that is its step, not yours.
+Recording them here as well would double every child and leave the initiative
+uncounted.
+
+If there is no ticket, or the call fails, say so in your report and carry on.
+The work is done either way, and a report claiming a measurement it did not
+take is worse than a missing row.
 
 ## Rules
 

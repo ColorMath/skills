@@ -2,7 +2,7 @@
 name: implement-ticket
 description: Take a planned ticket all the way to a shipped PR — check its plan still matches the code, ask only what genuinely blocks, build it at the layer the plan names, execute its QA plan against the running stack, then hand off to /colormath:ship. Use this when someone says to implement, build, do, or work a ticket that has already been groomed, or names a ticket key and says "go". Not for grooming (that's /colormath:gather-requirements, then /colormath:plan-ticket) and not for a defect report (that's /colormath:bugfix).
 argument-hint: [ticket key, e.g. CM-00012]
-allowed-tools: Bash Read Edit Write Grep Glob Skill AskUserQuestion mcp__abacus__get_ticket mcp__abacus__add_comment mcp__abacus__get_board mcp__abacus__move_ticket mcp__abacus__list_boards mcp__abacus__list_tickets
+allowed-tools: Bash Read Edit Write Grep Glob Skill AskUserQuestion mcp__abacus__get_ticket mcp__abacus__record_metric mcp__abacus__add_comment mcp__abacus__get_board mcp__abacus__move_ticket mcp__abacus__list_boards mcp__abacus__list_tickets
 ---
 
 Implement the ticket in "$ARGUMENTS", QA it, and ship it.
@@ -197,6 +197,33 @@ link, whether it merged or is held, and the deviations. That comment is how the
 ticket stops being a plan and becomes a record. Leave the ticket's own fields
 alone: `plan` and `qa_plan` are what was intended, and the comment is what
 happened.
+
+## 8. Record that you ran
+
+Abacus cannot see this happen. Nothing outside your own run knows a skill
+started, so a run you do not record did not happen as far as the ticket is
+concerned — and the counts worth having are the ones nobody wants: a ticket
+implemented twice is a ticket whose plan did not survive contact with the code,
+and the second attempt looks like the first.
+
+`mcp__abacus__record_metric` with the ticket's `id`, `metric: "skill_invoked"`,
+and `subject: "implement-ticket"` — the bare name, never the whole command,
+because the plugin half is configuration and differs per board.
+
+**Once, at the end, and only if you did the work.** Not on every turn and not
+when you begin — a skill that reports each time it thinks makes the count
+meaningless. If you were interrupted, or you sent the ticket back to
+`/colormath:plan-ticket` or `/colormath:gather-requirements` without building
+anything, record nothing: a run that did not happen must not leave a row saying
+it did.
+
+**The rows are append-only.** Nobody can edit or delete one, you included, so a
+wrong subject or a double-record is permanent. Get it right rather than
+expecting to correct it.
+
+If there is no ticket, or the call fails, say so in your report and carry on.
+The work is done either way, and a report claiming a measurement it did not
+take is worse than a missing row.
 
 ## Rules
 
