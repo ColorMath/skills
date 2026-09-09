@@ -56,12 +56,15 @@ a board column, a bookmark) stops resolving at that moment.
 
 - **The skills move the ticket now.** `gather-requirements`, `plan-ticket`,
   `implement-ticket` and `bugfix` each finish by moving the ticket into the
-  board column that names them, so the board reflects what has actually
-  happened instead of waiting for somebody to drag a card. They ask the board
-  which column that is — `get_board` returns each swimlane's `entry_commands`,
-  and a skill moves to the one naming itself — rather than matching a column
-  title, so a renamed column keeps working and a board on a different schema is
-  simply left alone.
+  next board column, so the board reflects what has actually happened instead
+  of waiting for somebody to drag a card.
+
+  **They ask the board where to move it.** `get_board` returns the swimlanes in
+  board order, each carrying `exit_commands` — the commands that move work *on
+  from* that column. A skill finds the lane naming itself, which is the one the
+  work leaves, and moves the ticket to the **next** one. No skill matches a
+  column title, so a renamed column keeps working and a board on a different
+  schema is simply left alone.
 
   This reverses an explicit instruction in `implement-ticket` and `bugfix` not
   to move tickets, and the reason it can be reversed is the interesting half:

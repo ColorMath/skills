@@ -252,12 +252,14 @@ anything you deliberately left for a human.
   the cause you found, and what you deliberately left alone. Leave the ticket's
   own fields alone: the description is what was reported, and the comment is
   what happened.
-- **Then move it to the column that names this skill.** Ask the board rather
-  than naming a column: `mcp__abacus__get_board` with the ticket's `board_id`
-  returns every swimlane with its `entry_commands`, one of which names this
-  skill — match the part after the colon (`bugfix`), since the plugin half is
-  configuration. Then `mcp__abacus__move_ticket` with that `swimlane_id` and
-  `position: 0`.
+- **Then move it on.** Ask the board rather than naming a column:
+  `mcp__abacus__get_board` with the ticket's `board_id` returns the swimlanes
+  **in board order**, each with its `exit_commands` — the commands that move
+  work *on from* that column. One names this skill; match the part after the
+  colon (`bugfix`), since the plugin half is configuration. That lane is the one
+  the work **leaves**, so move the ticket to the **next** swimlane in the
+  returned order: `mcp__abacus__move_ticket` with its `swimlane_id` and
+  `position: 0`. Off by one here moves every ticket backwards.
 
   This was forbidden until Abacus columns came from a board schema, on the
   reasoning that lane meaning was per board and guessing was worse than leaving

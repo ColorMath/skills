@@ -213,11 +213,17 @@ rather than its history.
 The plan is written, so the ticket has moved on and the board should say so.
 
 **Ask the board which column that is; never name one.** Call
-`mcp__abacus__get_board` with the ticket's `board_id`. Every swimlane it returns
-carries `entry_commands` — the commands that move work *into* that column — and
-exactly one of them names this skill. Match on the part after the colon
-(`plan-ticket`), because the plugin half is configuration and differs per board.
-Then `mcp__abacus__move_ticket` with that `swimlane_id` and `position: 0`.
+`mcp__abacus__get_board` with the ticket's `board_id`. It returns the swimlanes
+**in board order**, each carrying `exit_commands` — the commands that move work
+*on from* that column. Exactly one names this skill; match on the part after the
+colon (`plan-ticket`), because the plugin half is configuration and differs per
+board.
+
+That lane is the one this work **leaves**, so the ticket goes to the one
+**after** it: take the next swimlane in the returned order and
+`mcp__abacus__move_ticket` with its `swimlane_id` and `position: 0`. Getting
+this off by one moves every ticket backwards, so read the order rather than
+assuming it.
 
 This used to be forbidden, and the reason it was is worth knowing: lane meaning
 was per board and free text, so one team's "In Review" was another's "Staging"
