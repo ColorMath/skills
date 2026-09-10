@@ -18,6 +18,34 @@ which still covers the gates. This repo's history begins at the extraction.
 
 ## Unreleased
 
+MAJOR. Abacus renamed the thing an organization contains from a **board** to a
+**project**, all the way down — code, templates, URLs, database and MCP tool
+names — and these skills speak that surface.
+
+### Changed
+
+- **`get_board` is `get_project` and `list_boards` is `list_projects`**, and
+  the `board_id` those tools return and take is `project_id`. Six skills name
+  the two tools in their `allowed-tools:` frontmatter, where a stale name fails
+  at **load time** rather than at call time — the skill simply does not get the
+  tool, and the failure surfaces halfway through a run as a missing capability
+  rather than as a clear error. That is why this is a major bump and not a
+  tidy-up.
+
+  Abacus ships **no aliases**: the old names are gone rather than deprecated. A
+  tool surface that answers to two names teaches both, and the second one never
+  gets removed. See Abacus's `docs/adr/0040`.
+
+  **Order matters when you take this.** Nothing pins this repo, so merging here
+  *is* the release — take it only once the Abacus instance your skills talk to
+  is running the rename. A skills release ahead of its Abacus is six skills
+  that cannot find their tools.
+
+- **Every skill says "project" where it said "board".** The prose moved with
+  the tools: "ask the project where to move it", "a repository not connected to
+  the project", "the swimlanes in the project's own order". Nothing about the
+  behaviour changed.
+
 ## v5.1.0 — 2026-09-09
 
 MINOR. Two new steps in existing skills, and both are about a ticket telling

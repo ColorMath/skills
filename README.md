@@ -64,7 +64,7 @@ the plugin's one tracker dependency.
 `gather-requirements` owns `description` (and an initiative's features);
 `plan-ticket` owns `plan` and `qa_plan`. Neither writes the other's fields, so
 the requirements a plan is built on were settled and read by somebody before
-the plan existed. Abacus's board schema names them per column for the same
+the plan existed. Abacus's project schema names them per column for the same
 reason: `gather-requirements` moves work into **Designing**, `plan-ticket` into
 **Ready for Implementation**.
 

@@ -2,7 +2,7 @@
 name: implement-ticket
 description: Take a planned ticket all the way to a shipped PR — check its plan still matches the code, ask only what genuinely blocks, build it at the layer the plan names, execute its QA plan against the running stack, then hand off to /colormath:ship. Use this when someone says to implement, build, do, or work a ticket that has already been groomed, or names a ticket key and says "go". Not for grooming (that's /colormath:gather-requirements, then /colormath:plan-ticket) and not for a defect report (that's /colormath:bugfix).
 argument-hint: [ticket key, e.g. CM-00012]
-allowed-tools: Bash Read Edit Write Grep Glob Skill AskUserQuestion mcp__abacus__get_ticket mcp__abacus__record_metric mcp__abacus__add_comment mcp__abacus__get_board mcp__abacus__move_ticket mcp__abacus__list_boards mcp__abacus__list_tickets
+allowed-tools: Bash Read Edit Write Grep Glob Skill AskUserQuestion mcp__abacus__get_ticket mcp__abacus__record_metric mcp__abacus__add_comment mcp__abacus__get_project mcp__abacus__move_ticket mcp__abacus__list_projects mcp__abacus__list_tickets
 ---
 
 Implement the ticket in "$ARGUMENTS", QA it, and ship it.
@@ -25,7 +25,7 @@ than a PR.
 
 Call `mcp__abacus__get_ticket`. It takes the key directly; case and padding
 don't matter. If "$ARGUMENTS" is a title fragment, resolve it with
-`list_boards` / `list_tickets` and confirm which ticket you landed on.
+`list_projects` / `list_tickets` and confirm which ticket you landed on.
 
 Read all of it — description, **implementation plan**, **QA plan**, every
 comment, type, and the initiative it belongs to if it has one. Comments carry
@@ -53,7 +53,7 @@ you avoid building something that collides with the ticket after it.
 **Keep the ticket's current `swimlane_id`.** The next step moves it, and this is
 what puts it back if the run ends without building anything.
 
-## 2. Say on the board that somebody is on it
+## 2. Say on the project that somebody is on it
 
 Move the ticket into the column this skill leads into — **now, before you read a
 line of the code**, not when the work is done.
@@ -62,7 +62,7 @@ The column is a claim in the present tense: somebody is building this. A move
 made at the end has never once been true while it was true. The ticket spends
 its entire working life — the hours of reading, building and QA where a
 collision actually costs something — sitting in Ready for Implementation, and
-anybody looking at the board during exactly that window sees work nobody has
+anybody looking at the project during exactly that window sees work nobody has
 picked up. The column then flickers past on the way to ship. A lane that no
 ticket is ever observed in is a lane that is not doing anything.
 
@@ -71,23 +71,23 @@ has an implementation plan, is a type that can be built, and is going to be
 built. What is left is whether the plan still holds, and there is a way back for
 that below.
 
-**Ask the board where; never name a column.** Call `mcp__abacus__get_board` with
-the ticket's `board_id`. It returns the swimlanes **in board order**, each
+**Ask the project where; never name a column.** Call `mcp__abacus__get_project` with
+the ticket's `project_id`. It returns the swimlanes **in the project's own order**, each
 carrying `exit_commands` — the commands that move work *on from* that column.
 Each entry says its `skill`, the whole `command` line, and `leads_to` — the id
 of the swimlane that command moves the ticket into.
 
 Find the entry whose `skill` is `implement-ticket`; match on that field rather
 than on the command line, whose plugin half is configuration and differs per
-board. Then `mcp__abacus__move_ticket` with that entry's `leads_to` as the
+project. Then `mcp__abacus__move_ticket` with that entry's `leads_to` as the
 `swimlane_id`, and `position: 0`. The destination is stated, so do not count
 lanes yourself — "the one after the lane I matched" is arithmetic whose one
 wrong answer sends every ticket backwards.
 
 This used to be forbidden, and the reason is worth knowing: lane meaning was per
-board and free text, so one team's "In Review" was another's "Staging" and
+project and free text, so one team's "In Review" was another's "Staging" and
 guessing at somebody's workflow was worse than leaving the ticket alone. Abacus
-columns now come from a board schema and say for themselves which skill leads
+columns now come from a project schema and say for themselves which skill leads
 into them, so there is nothing left to guess.
 
 **The move says somebody is building this, and only that.** Whether the code
@@ -105,9 +105,9 @@ it is a worse lie than the one this step exists to correct.
 Three cases where you do not move it, each reported rather than retried:
 
 - **No column names this skill** — a Task Tracker names none, and neither does a
-  board on a schema that runs a different process. Say the board does not
+  project on a schema that runs a different process. Say the project does not
   describe this step, and carry on building: the work is not conditional on the
-  board being able to describe it.
+  project being able to describe it.
 - **The ticket is in no column at all.** The move is refused: *"Plan this ticket
   for a release, or file it under an initiative, before giving it a status."*
   That is correct; report it and carry on.
@@ -154,7 +154,7 @@ not groomed and should go back to `/colormath:gather-requirements` — say that
 instead of interviewing your way to a design.
 
 Handing the ticket back is one of the two good outcomes here, and it has a
-board move of its own: put the ticket back in the column step 2 took it out of
+project move of its own: put the ticket back in the column step 2 took it out of
 before you stop.
 
 ## 5. Build it, at the layer the plan names
@@ -217,7 +217,7 @@ failure does not cost a CI round trip. Then invoke `/colormath:ship`, which
 takes it the rest of the way: PR, gates, the review, a second pass over this
 same QA plan against the running stack, fixes for what turns up, either an
 auto-merge when the PR is genuinely clean or a hold with the reason — and the
-next move on the board.
+next move on the project.
 
 Give ship a title naming the change in the ticket's own terms, and a body that
 carries what a reviewer cannot reconstruct: **the ticket key and what it asked
@@ -240,11 +240,11 @@ and the second attempt looks like the first.
 
 `mcp__abacus__record_metric` with the ticket's `id`, `metric: "skill_invoked"`,
 and `subject: "implement-ticket"` — the bare name, never the whole command,
-because the plugin half is configuration and differs per board.
+because the plugin half is configuration and differs per project.
 
 **Once, at the end, and only if you did the work.** Not on every turn and not
 when you begin — a skill that reports each time it thinks makes the count
-meaningless. The board move in step 2 is deliberately the other way round, and
+meaningless. The project move in step 2 is deliberately the other way round, and
 the two are not in tension: a column is a claim about what is happening now, so
 it is only useful said early, while a metric is a record of what happened, which
 cannot be written until it has. If you were interrupted, or you sent the ticket

@@ -2,7 +2,7 @@
 name: ship
 description: Open a PR, wait for the gates and the review, then QA the change against a running stack from the ticket's QA plan in Abacus (writing one if the ticket has none), fix every finding — blockers included — then move the ticket on in Abacus and decide once, auto-merging when clean or holding for a human. Never re-triggers the review.
 argument-hint: [optional PR title]
-allowed-tools: Bash Read Edit Write Grep Glob Skill AskUserQuestion mcp__abacus__get_ticket mcp__abacus__record_metric mcp__abacus__update_ticket mcp__abacus__add_comment mcp__abacus__list_boards mcp__abacus__list_tickets mcp__abacus__get_board mcp__abacus__link_pull_request mcp__abacus__move_ticket
+allowed-tools: Bash Read Edit Write Grep Glob Skill AskUserQuestion mcp__abacus__get_ticket mcp__abacus__record_metric mcp__abacus__update_ticket mcp__abacus__add_comment mcp__abacus__list_projects mcp__abacus__list_tickets mcp__abacus__get_project mcp__abacus__link_pull_request mcp__abacus__move_ticket
 model: claude-sonnet-4-6
 ---
 
@@ -37,8 +37,8 @@ message, if at all. Four calls:
 1. **Identify the ticket** by the rule in step 4's *Find the ticket* — the same
    rule, not a second one. If you cannot say which ticket this PR implements,
    there is nothing to link and nothing below applies: say so and carry on.
-2. `mcp__abacus__get_ticket` on it, for its `board_id`.
-3. `mcp__abacus__get_board` on that board, and match its `repositories` on
+2. `mcp__abacus__get_ticket` on it, for its `project_id`.
+3. `mcp__abacus__get_project` on that project, and match its `repositories` on
    `full_name` against the repository you actually pushed to (`gh repo view
    --json nameWithOwner`).
 4. `mcp__abacus__link_pull_request` with the ticket id, that repository id, and
@@ -49,8 +49,8 @@ Three things that decide what to do when it does not go cleanly:
 - **A duplicate is success.** Linking the same PR twice is refused, and on a
   re-run of this skill that refusal means the link is already there. Read it as
   done, not as an error.
-- **A repository that is not connected to the board is a hold, not a guess.**
-  Do not link to whichever repository the board happens to have, and do not link
+- **A repository that is not connected to the project is a hold, not a guess.**
+  Do not link to whichever repository the project happens to have, and do not link
   to the only one when there are several — a wrong link is worse than none.
   Record it and carry it to step 8.
 - **Any other failure is reported and carried forward, never swallowed.** Do not
@@ -145,11 +145,11 @@ running system and only counts once you've watched the system confirm or break
 it. A green gate suite does not exercise the rendered UI or most request/
 response behavior, which is exactly the gap this covers.
 
-**Find the ticket.** Look for a key like `CM-00012` / `ID-00031` (the board's
+**Find the ticket.** Look for a key like `CM-00012` / `ID-00031` (the project's
 own prefix, then digits) in the branch name, the PR title and body, and the
 branch's commit messages. Confirm it with `mcp__abacus__get_ticket`, which takes
 the key directly — case and padding don't matter. If only a title fragment
-turns up, resolve it via `list_boards` / `list_tickets` and confirm which ticket
+turns up, resolve it via `list_projects` / `list_tickets` and confirm which ticket
 you landed on. Two rules on what counts:
 - An **initiative** is the wrong altitude and a **task** carries no plans by
   design. Neither is the ticket for this PR — treat it as no ticket.
@@ -299,7 +299,7 @@ rather than after step 8 — the hold path ends with STOP, and a step behind a
 STOP is a step that does not always happen.
 
 ### Move it to the column ship leads into
-The branch is through the pipeline, so the board should say so — and this is the
+The branch is through the pipeline, so the project should say so — and this is the
 only skill that can say it. `implement-ticket` and `bugfix` move a ticket when
 the code is *written*; what turns written code into code complete is this run:
 the PR, the gates, the review, the QA, the fixes. That is a step no other skill
@@ -312,8 +312,8 @@ moved on a merge would never move on those repos at all. What the move claims is
 that the change went through the pipeline; whether a human has clicked merge is
 what the comment and step 8's report say.
 
-**Ask the board where; never name a column.** Call `mcp__abacus__get_board` with
-the ticket's `board_id`. It returns the swimlanes **in board order**, each
+**Ask the project where; never name a column.** Call `mcp__abacus__get_project` with
+the ticket's `project_id`. It returns the swimlanes **in the project's own order**, each
 carrying `exit_commands` — the commands that move work *on from* that column.
 Each entry says its `skill`, the whole `command` line, and `leads_to`, the id of
 the swimlane it moves the ticket into. Find the entry whose `skill` is `ship` —
@@ -328,7 +328,7 @@ Four cases where you do **not** move it, each reported rather than retried:
 - **There is no ticket.** Step 4's case (c). Nothing to move, and inventing one
   to hold the move is worse than the missing row.
 - **No column names this skill.** A Task Tracker names none, and neither does a
-  board on a schema that runs a different process. Say the board does not
+  project on a schema that runs a different process. Say the project does not
   describe this step.
 - **The ticket is in no column at all.** The move is refused: *"Plan this ticket
   for a release, or file it under an initiative, before giving it a status."*
@@ -337,7 +337,7 @@ Four cases where you do **not** move it, each reported rather than retried:
   either way, and a ticket in the wrong column is a smaller problem than a
   report claiming a move that did not happen.
 
-None of these blocks the merge decision below. The board being wrong is worth
+None of these blocks the merge decision below. The project being wrong is worth
 saying out loud; it is not a reason to hold a clean PR.
 
 ### Record that you ran
@@ -349,7 +349,7 @@ like the first from the outside.
 
 `mcp__abacus__record_metric` with the ticket's `id`, `metric: "skill_invoked"`,
 and `subject: "ship"` — the bare name, never the whole command, because the
-plugin half is configuration and differs per board.
+plugin half is configuration and differs per project.
 
 **Once, at the end, and only if you did the work.** Not on every turn and not
 when you begin — a skill that reports each time it thinks makes the count
@@ -363,7 +363,7 @@ wrong subject or a double-record is permanent. Get it right rather than
 expecting to correct it.
 
 **Record it even when the move above was refused**, and even when there is no
-column naming this skill — the two are separate claims, and a board that does
+column naming this skill — the two are separate claims, and a project that does
 not run this process still holds a ticket somebody ran ship against. The one
 case that stops both is the one that stops everything here: no ticket at all.
 
@@ -423,7 +423,7 @@ Evaluate four gates against the **current** state of the branch:
    The gate is **not applicable** when there was no ticket to link — step 1 says
    so explicitly, and a branch with no ticket must not become a spurious hold.
    Where the link failed for a reason step 1 recorded, hold and name that reason:
-   a repository not connected to the board is fixed by connecting it, and saying
+   a repository not connected to the project is fixed by connecting it, and saying
    so is more use than reporting a missing link.
 
 **All four true → auto-merge.** Post a PR comment saying you are merging and
