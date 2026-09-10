@@ -18,6 +18,52 @@ which still covers the gates. This repo's history begins at the extraction.
 
 ## Unreleased
 
+MINOR. **`/colormath:ship` leaves a ticket at the step its move lands on.**
+
+### Changed
+
+- **`/colormath:ship`** now makes a third write against the ticket: after moving
+  it to Code Complete, it sets the ticket's *step* to the one the project said
+  that move lands on.
+
+  A column in Abacus can have an inside. Code Complete has two states — a PR
+  that is open and waiting on a person, and one that is merged and ready for QA
+  — and shipping produces the first. Until now the column said only "code
+  complete", which is true of both and useful for neither: the tickets waiting
+  on somebody looked exactly like the ones that were not.
+
+  The mechanics are declarative, so nothing is hard-coded. Each entry in
+  `get_project`'s `exit_commands` now carries `leads_to_step` beside its
+  `leads_to`; when it is a string, ship follows the move with
+  `set_ticket_step`, passing that key through unchanged. When it is null —
+  which is every other move today — there is nothing more to do.
+
+  **Two calls rather than one**, because `move_ticket` takes a swimlane and a
+  state is a column *and* a step. Folding the step into the move would have made
+  that tool grow a second mood and would have meant inventing a `position`,
+  which it clamps — so a wrong guess quietly reorders somebody's project.
+
+  Ship does not set it when it did not move the ticket. A step naming a place
+  the ticket is not in is worse than no step at all.
+
+- **A note on the word**, because this file and the skills use it two ways:
+  everywhere in a SKILL.md "step" means a numbered step of that procedure. A
+  *ticket's* step is where inside its column the work has got to — something
+  you set on a ticket, never something you do. `ship`'s prose says which it means
+  wherever both could be read.
+
+### Requires
+
+Abacus with `docs/adr/0042` — `set_ticket_step`, and `leads_to_step` on
+`get_project`. Against an older Abacus the field is absent, ship reads it as
+null, and the behaviour is exactly what it was before: the ticket moves and no
+step is set.
+
+**Only `ship` is affected.** The other moving skills read the same
+`exit_commands`, but every edge they follow lands on a column's base state, so
+`leads_to_step` is null for all of them. Each will want the same three lines the
+first time a column they move into declares a step.
+
 ## v5.1.1 — 2026-09-10
 
 MAJOR. Abacus renamed the thing an organization contains from a **board** to a
