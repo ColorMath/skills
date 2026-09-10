@@ -151,8 +151,8 @@ each step against the code. This pass checks the steps against one another:
   code in a location the conventions now forbid, will pass review and rot.
 
 Write the results to a progress ledger file at
-`.superpowers/sdd/<ticket-key>/progress.md`. Create the directory if it does
-not exist (`mkdir -p`), and ensure `.superpowers/` is in the repo's
+`.colormath/workspace/<ticket-key>/progress.md`. Create the directory if it does
+not exist (`mkdir -p`), and ensure `.colormath/` is in the repo's
 `.gitignore` (add it if missing — the workspace is scratch, not source).
 Start the ledger with `# Ledger — ticket: <ticket key>` as its first line. Record the scan
 as a table: one row per pair of adjacent steps that share an interface, and
@@ -198,7 +198,7 @@ on ambiguities, and keeps the ledger.
 
 ### The ledger
 
-The progress ledger at `.superpowers/sdd/<ticket-key>/progress.md` (created
+The progress ledger at `.colormath/workspace/<ticket-key>/progress.md` (created
 in step 3) is your recovery map. It survives context compaction. If this
 session's context is compressed, trust the ledger and `git log` over your
 own recollection.
@@ -218,7 +218,7 @@ For each plan step, in order:
 diff and fix-round diffs need this.
 
 **2. Write the step brief to a file.** Save the step's full text (including
-its interfaces) to `.superpowers/sdd/<ticket-key>/step-<N>-brief.md`. This
+its interfaces) to `.colormath/workspace/<ticket-key>/step-<N>-brief.md`. This
 file is the subagent's requirements.
 
 **3. Dispatch a fresh implementer subagent.** The dispatch contains:
@@ -232,7 +232,7 @@ file is the subagent's requirements.
   the brief's `consumes` section names.
 - Global context from the ticket and initiative: what the ticket is for,
   the acceptance criteria, and any conventions the step must follow.
-- The report file path (`.superpowers/sdd/<ticket-key>/step-<N>-report.md`)
+- The report file path (`.colormath/workspace/<ticket-key>/step-<N>-report.md`)
   and the report contract: the subagent writes its full report there and
   returns only status, commits, a one-line test summary, and concerns.
 
@@ -259,7 +259,7 @@ Never ignore an escalation. If the implementer said it is stuck, something
 needs to change.
 
 **5. Review the step.** Write the diff to a file: `git diff BASE..HEAD`
-redirected to `.superpowers/sdd/<ticket-key>/step-<N>-review.diff`. Dispatch
+redirected to `.colormath/workspace/<ticket-key>/step-<N>-review.diff`. Dispatch
 a fresh reviewer subagent with: the diff file, the brief file, the report
 file, and the ticket's acceptance criteria. The reviewer checks **spec
 compliance and code quality**. Both verdicts are required. Never skip the
@@ -383,7 +383,7 @@ conventions violated only when the full diff is visible, and the deferred
 findings from the ledger.
 
 Write the full branch diff to a file: `git diff $(git merge-base main HEAD)..HEAD`
-redirected to `.superpowers/sdd/<ticket-key>/branch-review.diff`. Dispatch a
+redirected to `.colormath/workspace/<ticket-key>/branch-review.diff`. Dispatch a
 code reviewer on the **most capable available model** with: the diff file,
 the ticket's description and acceptance criteria, and every line from the
 ledger that contains `parked` or `deferred`. The reviewer sees the whole
@@ -450,7 +450,7 @@ list from step 6. That comment is how the ticket stops being a plan and
 becomes a record. Leave the ticket's own fields alone: `plan` and `qa_plan`
 are what was intended, and the comment is what happened.
 
-Delete the workspace directory (`.superpowers/sdd/<ticket-key>/`) — the git
+Delete the workspace directory (`.colormath/workspace/<ticket-key>/`) — the git
 history is the record now. Other tickets' directories are not yours to
 touch.
 
