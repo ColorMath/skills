@@ -2,7 +2,7 @@
 name: plan-ticket
 description: Turn a ticket whose requirements are settled into one somebody could start on Monday — read it, investigate the code it touches at file-and-line level, settle the few implementation forks the requirements left open, then write back a file-anchored implementation plan and an executable QA plan. Use this whenever someone wants a ticket planned, made ready, starred, estimated, or "taken from a description to something I can pick up" — or names a ticket key (CM-00001) and asks how it would be built. Not for establishing what is being asked for (that's /colormath:gather-requirements), not for finding unknown problems in a feature (that's /colormath:qa), and not for implementing it — the planned ticket is the deliverable.
 argument-hint: [ticket key, e.g. CM-00001 — or enough of the title to find it]
-allowed-tools: Bash Read Grep Glob AskUserQuestion mcp__abacus__get_ticket mcp__abacus__record_metric mcp__abacus__update_ticket mcp__abacus__add_comment mcp__abacus__get_project mcp__abacus__move_ticket mcp__abacus__list_projects mcp__abacus__list_tickets mcp__abacus__list_members
+allowed-tools: Agent Bash Read Grep Glob AskUserQuestion mcp__abacus__get_ticket mcp__abacus__record_metric mcp__abacus__update_ticket mcp__abacus__add_comment mcp__abacus__get_project mcp__abacus__move_ticket mcp__abacus__list_projects mcp__abacus__list_tickets mcp__abacus__list_members
 ---
 
 Plan the ticket named in "$ARGUMENTS" until someone else could pick it up cold
@@ -91,6 +91,15 @@ jobs, migrations and config. You are answering, for yourself:
 - **What has moved since the description was written.** Files get renamed,
   adjacent changes land, assumptions expire. A description six weeks old is
   evidence, not ground truth.
+- **What already exists that does something close to what this ticket needs.**
+  Launch subagents to search the codebase by domain concept (not just
+  filename) for: functions that solve a similar problem, patterns that could
+  be extended to cover this case, and shared abstractions in the repo's
+  conventional locations. Each subagent reports what it found, where it
+  lives (`path:line`), and how close it is to what the ticket asks for. These
+  findings feed step 3 (as forks to settle) and step 4 (as written decisions
+  in the plan). A search that finds nothing is still a finding worth
+  recording.
 
 Then hunt specifically for **what the diff won't contain**. Work whose code
 change looks like a one-line edit is a signal to keep digging: a migration that
@@ -140,6 +149,41 @@ belongs at and why, any migration or data implication, and the rollout sequence
 when deploy order matters. Include **what explicitly does not need to change**
 — it bounds the diff against scope creep, and it's the visible proof that you
 actually looked.
+
+Each step in the plan is a design decision. It reflects what a staff-level
+engineer would choose, and it shows the reasoning:
+
+- **Search for reuse before proposing new code.** Name what you searched for
+  and what you found (or that you searched and found nothing). Prefer
+  extending an existing function, component, or pattern over writing a
+  parallel one. When the plan proposes something new, say why the existing
+  alternatives do not fit.
+- **Follow the repo's own conventions.** Each plan step states which existing
+  pattern it follows, or why none fits. Naming, layering, file placement,
+  error handling: the surrounding code is the spec.
+- **Prefer the boring solution.** Fewest moving parts, least new surface
+  area, the approach a future reader will understand without archaeology.
+  Between two designs that solve the problem, the simpler one wins.
+- **Name the near-duplicates and decide.** Step 2 found code that does almost
+  the same thing. The plan writes the decision about each one: extend it,
+  replace it, or deliberately duplicate and note the twin.
+- **Size the abstraction to its callers.** Extract shared logic when the same
+  concept appears a third time, with callers that exist today. A wrong
+  abstraction is more expensive than duplication.
+- **Delete when you can.** A plan that removes code is often stronger than
+  one that adds it. If the change makes something obsolete, say so.
+
+Each step also states its **interfaces**: what it consumes from the steps
+before it, and what it produces for the steps after it. Name the exact
+functions, types, or data shapes. A step that a subagent could pick up cold
+and build without reading the rest of the plan is the right size. A step
+that requires the whole plan for context is too tangled to review or test
+alone.
+
+**No placeholders.** Every step contains what the builder needs. These are
+plan failures: "TBD", "TODO", "add appropriate error handling", "add
+validation", "write tests for the above", "similar to step N". A step that
+describes what to do without saying how is a placeholder with more words.
 
 Close with **open questions** — everything unresolved, stated plainly rather
 than papered over. A plan that admits two unknowns is more useful than one that
