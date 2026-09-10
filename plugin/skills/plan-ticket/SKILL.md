@@ -85,7 +85,7 @@ jobs, migrations and config. You are answering, for yourself:
   convenience — a fix in a route that belonged in a service passes review and
   rots.
 - **What else reaches this code.** Every other caller of the function you are
-  about to change is regression surface, and step 6 is where they get checked.
+  about to change is regression surface, and step 5 is where they get checked.
 - **What the existing tests already cover**, so the QA plan doesn't duplicate
   the suite, and so you can see what the suite is blind to.
 - **What has moved since the description was written.** Files get renamed,
@@ -173,12 +173,16 @@ engineer would choose, and it shows the reasoning:
 - **Delete when you can.** A plan that removes code is often stronger than
   one that adds it. If the change makes something obsolete, say so.
 
-Each step also states its **interfaces**: what it consumes from the steps
-before it, and what it produces for the steps after it. Name the exact
-functions, types, or data shapes. A step that a subagent could pick up cold
-and build without reading the rest of the plan is the right size. A step
-that requires the whole plan for context is too tangled to review or test
-alone.
+Each step also states its **interfaces** under two labeled sections:
+
+- **Consumes:** what this step uses from earlier steps — exact function
+  names, types, and data shapes.
+- **Produces:** what later steps rely on — exact function names, parameter
+  and return types.
+
+A step that a subagent could pick up cold and build without reading the
+rest of the plan is the right size. A step that requires the whole plan for
+context is too tangled to review or test alone.
 
 **No placeholders.** Every step contains what the builder needs. These are
 plan failures: "TBD", "TODO", "add appropriate error handling", "add
