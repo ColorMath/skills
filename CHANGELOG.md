@@ -18,6 +18,8 @@ which still covers the gates. This repo's history begins at the extraction.
 
 ## Unreleased
 
+## v5.1.1 — 2026-09-10
+
 MAJOR. Abacus renamed the thing an organization contains from a **board** to a
 **project**, all the way down — code, templates, URLs, database and MCP tool
 names — and these skills speak that surface.
