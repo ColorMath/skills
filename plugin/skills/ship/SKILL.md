@@ -2,7 +2,7 @@
 name: ship
 description: Open a PR, wait for the gates and the review, then QA the change against a running stack from the ticket's QA plan in Abacus (writing one if the ticket has none), fix every finding — blockers included — then move the ticket on in Abacus and decide once, auto-merging when clean or holding for a human. Never re-triggers the review.
 argument-hint: [optional PR title]
-allowed-tools: Bash Read Edit Write Grep Glob Skill AskUserQuestion mcp__abacus__get_ticket mcp__abacus__record_metric mcp__abacus__update_ticket mcp__abacus__add_comment mcp__abacus__list_projects mcp__abacus__list_tickets mcp__abacus__get_project mcp__abacus__link_pull_request mcp__abacus__move_ticket
+allowed-tools: Bash Read Edit Write Grep Glob Skill AskUserQuestion mcp__abacus__get_ticket mcp__abacus__record_metric mcp__abacus__update_ticket mcp__abacus__add_comment mcp__abacus__list_projects mcp__abacus__list_tickets mcp__abacus__get_project mcp__abacus__link_pull_request mcp__abacus__move_ticket mcp__abacus__set_ticket_step
 model: claude-sonnet-4-6
 ---
 
@@ -293,10 +293,17 @@ recorded — step 8 still knows whether QA passed. Show me the restored state in
 your final report. (Skip only if you mutated nothing.)
 
 ## 7. Tell Abacus what this run did
-Two writes against the ticket, both about this run and neither about the diff:
-where the work now sits, and that ship was run on it. Do them together, here,
-rather than after step 8 — the hold path ends with STOP, and a step behind a
-STOP is a step that does not always happen.
+Three writes against the ticket, all about this run and none about the diff:
+where the work now sits, where inside that column it sits, and that ship was run
+on it. Do them together, here, rather than after step 8 — the hold path ends
+with STOP, and a step behind a STOP is a step that does not always happen.
+
+**A warning about one word.** Everywhere else in this file "step" means a
+numbered step of *this procedure* — "see step 5", "carry it to step 8". Abacus
+also uses it for something else: **a ticket's step is where inside its column
+the work has got to**, which is a thing you set on a ticket, never a thing you
+do. Below, that sense is always written as *the ticket's step*, and it never
+takes a number.
 
 ### Move it to the column ship leads into
 The branch is through the pipeline, so the project should say so — and this is the
@@ -339,6 +346,40 @@ Four cases where you do **not** move it, each reported rather than retried:
 
 None of these blocks the merge decision below. The project being wrong is worth
 saying out loud; it is not a reason to hold a clean PR.
+
+### Leave it at the ticket's step, when the move lands on one
+A column can have an inside. Abacus's Product schema gives Code Complete two
+states — a PR that is open and waiting on a person, and one that is merged and
+ready for QA — and **ship lands a ticket in the first of them**, because that
+is what shipping produces. Without this the column says only "code complete",
+which is true of both and useful for neither: the tickets waiting on somebody
+look exactly like the ones that are not.
+
+The entry you matched on `skill` in the move above carries `leads_to_step`
+beside its `leads_to`. When it is a string, follow the move with
+`mcp__abacus__set_ticket_step`, passing the ticket's id and that value. When it
+is null, the move lands on the column plainly and there is nothing more to do —
+which is the case for every other skill's move today.
+
+**Two calls, not one, and that is the shape rather than an oversight.**
+`move_ticket` takes a swimlane; a state is a column *and* a step, and a lane is
+only the first half. Sending the step as part of the move would have meant
+`move_ticket` growing a second mood, and it takes a `position` that would then
+have to be invented — which it clamps, so a wrong guess quietly reorders
+somebody's project.
+
+**Pass the key, not the label.** `leads_to_step` is already a key: it reads
+`in-review`, not "In review". Hand it over exactly as it arrived. `get_ticket`
+lists a column's legal keys as `steps` if you ever need to see them — you do
+not need to here, because the project has already told you which one this move
+lands on.
+
+Do not set it when you did not move the ticket. If the move was skipped for any
+of the four reasons above, the ticket is not where the step would describe, and
+a step naming a place the ticket is not in is worse than no step at all.
+
+If the call fails, say so and carry on. The ticket is in the right column
+either way, and this is the finer half of the same fact.
 
 ### Record that you ran
 Abacus cannot see this happen. Nothing outside your own run knows a skill
