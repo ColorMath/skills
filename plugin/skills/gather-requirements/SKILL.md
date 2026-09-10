@@ -2,7 +2,7 @@
 name: gather-requirements
 description: Establish what a ticket or an initiative actually asks for — read it, investigate the code and the architecture it lands in, interview the person who filed it until the picture is complete, then write back a description that stands on its own, and for an initiative, feature definitions someone could pick up. Use this whenever someone wants a ticket or initiative fleshed out, scoped, designed, "made real", or checked before work starts — or names a key and asks what it would actually take. Stops at the requirements: implementation and QA plans belong to /colormath:plan-ticket, and this is the layer above.
 argument-hint: [ticket or initiative key, e.g. CM-00001 — or enough of the title to find it]
-allowed-tools: Bash Read Grep Glob AskUserQuestion mcp__abacus__get_ticket mcp__abacus__record_metric mcp__abacus__update_ticket mcp__abacus__add_comment mcp__abacus__add_feature mcp__abacus__update_feature mcp__abacus__move_feature mcp__abacus__get_board mcp__abacus__move_ticket mcp__abacus__list_boards mcp__abacus__list_tickets mcp__abacus__list_members
+allowed-tools: Bash Read Grep Glob AskUserQuestion mcp__abacus__get_ticket mcp__abacus__record_metric mcp__abacus__update_ticket mcp__abacus__add_comment mcp__abacus__add_feature mcp__abacus__update_feature mcp__abacus__move_feature mcp__abacus__get_project mcp__abacus__move_ticket mcp__abacus__list_projects mcp__abacus__list_tickets mcp__abacus__list_members
 ---
 
 Establish what the work named in "$ARGUMENTS" actually asks for, until someone
@@ -39,7 +39,7 @@ it by, never the UUID.
 
 Call `mcp__abacus__get_ticket`. It takes the key directly, and case and
 zero-padding don't matter, so `cm-1` resolves. If "$ARGUMENTS" is a title
-fragment rather than a key, find it with `list_boards` then `list_tickets` and
+fragment rather than a key, find it with `list_projects` then `list_tickets` and
 confirm which one you landed on before doing anything else.
 
 **Read `type`, because it decides what the deliverable is:**
@@ -67,7 +67,7 @@ Then read all of it, and mean it: description, **every comment**, swimlane,
 assignee, release, the initiative it sits under, and — when it *is* an
 initiative — **every feature definition** in order plus the tickets already
 filed under it. `get_ticket` is the only place an initiative's children are
-listed; the board tools hide them. Comments are where decisions already made go
+listed; the project tools hide them. Comments are where decisions already made go
 to hide, and writing requirements that contradict a decision recorded in the
 ticket's own thread is an avoidable embarrassment.
 
@@ -267,35 +267,35 @@ home. The description should read as the current intent, not its history.
 
 ## 6. Move it to the column that names this skill
 
-The requirements are settled, so the ticket has moved on and the board should
+The requirements are settled, so the ticket has moved on and the project should
 say so.
 
-**Ask the board which column that is; never name one.** Call
-`mcp__abacus__get_board` with the ticket's `board_id`. It returns the swimlanes
-**in board order**, each carrying `exit_commands` — the commands that move work
+**Ask the project which column that is; never name one.** Call
+`mcp__abacus__get_project` with the ticket's `project_id`. It returns the swimlanes
+**in the project's own order**, each carrying `exit_commands` — the commands that move work
 *on from* that column. Each entry says its `skill`, the whole `command` line,
 and `leads_to` — the id of the swimlane that command moves the ticket into.
 
 Find the entry whose `skill` is `gather-requirements`; match on that field
 rather than on the command line, whose plugin half is configuration and differs
-per board. Then `mcp__abacus__move_ticket` with that entry's `leads_to` as the
+per project. Then `mcp__abacus__move_ticket` with that entry's `leads_to` as the
 `swimlane_id`, and `position: 0`. The destination is stated, so do not count
 lanes yourself — "the one after the lane I matched" is arithmetic whose one
 wrong answer sends every ticket backwards.
 
 This used to be forbidden, and the reason it was is worth knowing: lane meaning
-was per board and free text, so one team's "In Review" was another's "Staging"
+was per project and free text, so one team's "In Review" was another's "Staging"
 and guessing at somebody's workflow was worse than leaving the ticket alone.
-Abacus columns now come from a board schema and say for themselves which skill
+Abacus columns now come from a project schema and say for themselves which skill
 leads into them, so there is nothing left to guess — you are reading the answer,
 not inferring it.
 
 Three cases where you do **not** move it, and each is reported rather than
 retried:
 
-- **No column names this skill.** A Task Tracker board names none at all, and a
-  board on a schema that does not run this process names none either. Leave the
-  ticket where it is and say the board does not describe this step.
+- **No column names this skill.** A Task Tracker project names none at all, and a
+  project on a schema that does not run this process names none either. Leave the
+  ticket where it is and say the project does not describe this step.
 - **The ticket is in no column at all.** A ticket in the backlog has no status
   to change, and the move is refused: *"Plan this ticket for a release, or file
   it under an initiative, before giving it a status."* That is correct — a lane
@@ -336,7 +336,7 @@ fourth run looks exactly like the first from the outside.
 
 `mcp__abacus__record_metric` with the ticket's `id`, `metric: "skill_invoked"`,
 and `subject: "gather-requirements"` — the bare name, never the whole command,
-because the plugin half is configuration and differs per board.
+because the plugin half is configuration and differs per project.
 
 **Once, at the end, and only if you did the work.** Not on every turn and not
 when you begin — a skill that reports each time it thinks makes the count

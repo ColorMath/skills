@@ -392,7 +392,7 @@ ticket the rest of the way. The thinking already happened in
 
 It leaves the ticket's own fields alone: `plan` and `qa_plan` are the record of
 intent, the comment is the record of what happened. It does not move tickets
-between lanes — one board's "In Review" is another's "Staging", and guessing at
+between lanes — one project's "In Review" is another's "Staging", and guessing at
 somebody's workflow is worse than leaving it where they put it.
 
 **Prerequisites:** the **Abacus MCP server**, a checkout with the stack runnable

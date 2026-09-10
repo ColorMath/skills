@@ -2,7 +2,7 @@
 name: bugfix
 description: Take a bug report all the way from raw report to merged fix — establish the facts the report left out (which environment, which surface, the literal repro), reproduce the defect against the running stack, fix it at the layer the invariant belongs to, add a regression test that fails without the fix, assess whether the defect already corrupted stored data and remediate that in the same PR, then hand off to /colormath:ship. Use this whenever someone reports something broken — a ticket key for a filed bug, a bug report, a pasted stack trace or error log, "why is X doing Y", "users can't Z", a production incident, a written-up findings doc — even when they never say the word "bug". Not for sweeping a whole feature area for unknown problems (that's /colormath:qa), and not for shipping a branch that's already fixed (that's /colormath:ship).
 argument-hint: [a ticket key (CM-00012), or the report itself — prose, a pasted error/log, or a path to a report file]
-allowed-tools: Bash Read Edit Write Grep Glob Skill AskUserQuestion mcp__abacus__get_ticket mcp__abacus__record_metric mcp__abacus__add_comment mcp__abacus__get_board mcp__abacus__move_ticket mcp__abacus__list_boards mcp__abacus__list_tickets
+allowed-tools: Bash Read Edit Write Grep Glob Skill AskUserQuestion mcp__abacus__get_ticket mcp__abacus__record_metric mcp__abacus__add_comment mcp__abacus__get_project mcp__abacus__move_ticket mcp__abacus__list_projects mcp__abacus__list_tickets
 ---
 
 Turn the bug report in "$ARGUMENTS" into a merged fix.
@@ -33,7 +33,7 @@ shapes, and they start differently:
   made it into the description. A bug filed as a ticket has usually been talked
   about, and skipping the thread is how you re-derive what the thread already
   settled. If "$ARGUMENTS" is a title fragment rather than a key, find it with
-  `list_boards` then `list_tickets`, and confirm which one you landed on before
+  `list_projects` then `list_tickets`, and confirm which one you landed on before
   doing anything else.
 - **A file** — a written-up report, an exported ticket, a QA findings doc. Read
   the whole thing first.
@@ -91,7 +91,7 @@ methodically through a long diagnosis while the bleeding continues.
 **If this came from a ticket, keep its current `swimlane_id`.** The next step
 moves it, and this is what puts it back if the run ends without a fix.
 
-## 2. Say on the board that somebody is on it
+## 2. Say on the project that somebody is on it
 
 If there is a ticket, move it into the column this skill leads into — **now,
 before you try to reproduce anything**, not when the fix is written.
@@ -100,7 +100,7 @@ The column is a claim in the present tense: somebody is on this bug. A move
 made at the end has never once been true while it was true. The ticket spends
 its entire working life — bringing the stack up, reproducing, tracing the cause,
 writing the fix and the regression test, remediating the data — sitting wherever
-it was filed, so anybody looking at the board during exactly the window when a
+it was filed, so anybody looking at the project during exactly the window when a
 second person might pick the same bug up sees a bug nobody has touched. The
 column then flickers past on the way to ship. A lane that no ticket is ever
 observed in is a lane that is not doing anything.
@@ -109,23 +109,23 @@ This is the first step that costs anything, which is what makes it the right
 place. Step 1 was reading and asking; from here on you are running a stack and
 editing code, and that is the part worth claiming.
 
-**Ask the board where; never name a column.** Call `mcp__abacus__get_board`
-with the ticket's `board_id`. It returns the swimlanes **in board order**, each
+**Ask the project where; never name a column.** Call `mcp__abacus__get_project`
+with the ticket's `project_id`. It returns the swimlanes **in the project's own order**, each
 carrying `exit_commands` — the commands that move work *on from* that column.
 Each entry says its `skill`, the whole `command` line, and `leads_to` — the id
 of the swimlane that command moves the ticket into.
 
 Find the entry whose `skill` is `bugfix`; match on that field rather than on the
-command line, whose plugin half is configuration and differs per board. Then
+command line, whose plugin half is configuration and differs per project. Then
 `mcp__abacus__move_ticket` with that entry's `leads_to` as the `swimlane_id`,
 and `position: 0`. The destination is stated, so do not count lanes yourself —
 "the one after the lane I matched" is arithmetic whose one wrong answer sends
 every ticket backwards.
 
 This used to be forbidden, and the reason is worth knowing: lane meaning was per
-board and free text, so one team's "In Review" was another's "Staging" and
+project and free text, so one team's "In Review" was another's "Staging" and
 guessing at somebody's workflow was worse than leaving the ticket alone. Abacus
-columns now come from a board schema and say for themselves which skill leads
+columns now come from a project schema and say for themselves which skill leads
 into them, so there is nothing left to guess.
 
 **The move says somebody is on this bug, and only that.** Whether the fix then
@@ -144,8 +144,8 @@ Four cases where you do not move it, each reported rather than retried:
 - **There is no ticket.** A bug pasted in as prose or a stack trace has nothing
   to move. Say so once and carry on; the fix does not depend on being filed.
 - **No column names this skill** — a Task Tracker names none, and neither does a
-  board on a schema that runs a different process. Say the board does not
-  describe this step, and carry on: the work is not conditional on the board
+  project on a schema that runs a different process. Say the project does not
+  describe this step, and carry on: the work is not conditional on the project
   being able to describe it.
 - **The ticket is in no column at all.** The move is refused: *"Plan this ticket
   for a release, or file it under an initiative, before giving it a status."*
@@ -298,7 +298,7 @@ the one behind would be moved from the wrong place.
 - Then invoke `/colormath:ship`, which takes it the rest of the way: PR, gates,
   review, the ticket's QA plan executed against the running stack, fixes for
   anything that turns up, either an auto-merge when it's genuinely clean or a
-  hold with the reason — and the next move on the board.
+  hold with the reason — and the next move on the project.
 
 Give ship a PR title naming the user-visible symptom, and make sure the body
 carries what a reviewer needs and no reviewer can reconstruct on their own:
@@ -316,11 +316,11 @@ like the first.
 
 `mcp__abacus__record_metric` with the ticket's `id`, `metric: "skill_invoked"`,
 and `subject: "bugfix"` — the bare name, never the whole command, because the
-plugin half is configuration and differs per board.
+plugin half is configuration and differs per project.
 
 **Once, at the end, and only if you did the work.** Not on every turn and not
 when you begin — a skill that reports each time it thinks makes the count
-meaningless. The board move in step 2 is deliberately the other way round, and
+meaningless. The project move in step 2 is deliberately the other way round, and
 the two are not in tension: a column is a claim about what is happening now, so
 it is only useful said early, while a metric is a record of what happened, which
 cannot be written until it has. If you were interrupted, or you stopped at

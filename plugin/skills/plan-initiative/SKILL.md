@@ -2,7 +2,7 @@
 name: plan-initiative
 description: Plan every ticket in an initiative, one at a time and in build order, by running plan-ticket over each of them with the initiative's context injected — where this ticket sits in the sequence, what comes before and after it, and every decision already settled. Use this once an initiative has started building and its tickets exist, when someone wants the whole initiative planned, made ready, starred, or "taken from a list of titles to something the team can pick up". Finishes only when every plannable ticket in the initiative carries both an implementation plan and a QA plan.
 argument-hint: [initiative key, e.g. CM-00007]
-allowed-tools: Bash Read Grep Glob Skill AskUserQuestion mcp__abacus__get_ticket mcp__abacus__record_metric mcp__abacus__add_comment mcp__abacus__list_boards mcp__abacus__list_tickets
+allowed-tools: Bash Read Grep Glob Skill AskUserQuestion mcp__abacus__get_ticket mcp__abacus__record_metric mcp__abacus__add_comment mcp__abacus__list_projects mcp__abacus__list_tickets
 ---
 
 Plan every ticket under the initiative in "$ARGUMENTS", one at a time, until
@@ -23,13 +23,13 @@ carrying the context forward → verify → report.**
 ## 1. Read the initiative and check it can be planned
 
 Call `mcp__abacus__get_ticket` on "$ARGUMENTS". It takes the key directly. If
-that is a title fragment rather than a key, find it with `list_boards` then
+that is a title fragment rather than a key, find it with `list_projects` then
 `list_tickets` and confirm which one you landed on.
 
 **Check `type` is `initiative`.** If it is an ordinary ticket, this is the wrong
 skill — one ticket is `/colormath:plan-ticket`, and say so.
 
-**Check it has tickets.** The children are in `get_ticket`'s response; the board
+**Check it has tickets.** The children are in `get_ticket`'s response; the project
 tools hide them. If there are none:
 
 - `initiative_status` is `designing` — **the tickets have not been cut yet.**
@@ -124,7 +124,7 @@ move on rather than looping. Never report a ticket as planned because the
 sub-skill ran; report it planned because the fields are there.
 
 `plan-ticket` also **moves each ticket it plans** into the column that names it,
-so the board fills up column by column as the run proceeds. That is its job, not
+so the project fills up column by column as the run proceeds. That is its job, not
 yours: do not move children yourself, and do not treat a ticket that stayed put
 as a failure — a child still in the backlog cannot take a column at all, and
 `plan-ticket` will have said so.
@@ -165,7 +165,7 @@ contact with the code.
 
 `mcp__abacus__record_metric` with the ticket's `id`, `metric: "skill_invoked"`,
 and `subject: "plan-initiative"` — the bare name, never the whole command,
-because the plugin half is configuration and differs per board.
+because the plugin half is configuration and differs per project.
 
 **Once, at the end, and only if you did the work.** Not on every turn and not
 when you begin — a skill that reports each time it thinks makes the count

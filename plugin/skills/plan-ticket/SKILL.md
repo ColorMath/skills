@@ -2,7 +2,7 @@
 name: plan-ticket
 description: Turn a ticket whose requirements are settled into one somebody could start on Monday — read it, investigate the code it touches at file-and-line level, settle the few implementation forks the requirements left open, then write back a file-anchored implementation plan and an executable QA plan. Use this whenever someone wants a ticket planned, made ready, starred, estimated, or "taken from a description to something I can pick up" — or names a ticket key (CM-00001) and asks how it would be built. Not for establishing what is being asked for (that's /colormath:gather-requirements), not for finding unknown problems in a feature (that's /colormath:qa), and not for implementing it — the planned ticket is the deliverable.
 argument-hint: [ticket key, e.g. CM-00001 — or enough of the title to find it]
-allowed-tools: Bash Read Grep Glob AskUserQuestion mcp__abacus__get_ticket mcp__abacus__record_metric mcp__abacus__update_ticket mcp__abacus__add_comment mcp__abacus__get_board mcp__abacus__move_ticket mcp__abacus__list_boards mcp__abacus__list_tickets mcp__abacus__list_members
+allowed-tools: Bash Read Grep Glob AskUserQuestion mcp__abacus__get_ticket mcp__abacus__record_metric mcp__abacus__update_ticket mcp__abacus__add_comment mcp__abacus__get_project mcp__abacus__move_ticket mcp__abacus__list_projects mcp__abacus__list_tickets mcp__abacus__list_members
 ---
 
 Plan the ticket named in "$ARGUMENTS" until someone else could pick it up cold
@@ -31,7 +31,7 @@ call it by, never the UUID.
 
 Call `mcp__abacus__get_ticket`. It takes the key directly, and case and
 zero-padding don't matter, so `cm-1` resolves. If "$ARGUMENTS" is a title
-fragment rather than a key, find it with `list_boards` then `list_tickets` and
+fragment rather than a key, find it with `list_projects` then `list_tickets` and
 confirm which one you landed on.
 
 **Read `type` first, because two of the four stop here:**
@@ -210,34 +210,34 @@ rather than its history.
 
 ## 7. Move it to the column that names this skill
 
-The plan is written, so the ticket has moved on and the board should say so.
+The plan is written, so the ticket has moved on and the project should say so.
 
-**Ask the board which column that is; never name one.** Call
-`mcp__abacus__get_board` with the ticket's `board_id`. It returns the swimlanes
-**in board order**, each carrying `exit_commands` — the commands that move work
+**Ask the project which column that is; never name one.** Call
+`mcp__abacus__get_project` with the ticket's `project_id`. It returns the swimlanes
+**in the project's own order**, each carrying `exit_commands` — the commands that move work
 *on from* that column. Each entry says its `skill`, the whole `command` line,
 and `leads_to` — the id of the swimlane that command moves the ticket into.
 
 Find the entry whose `skill` is `plan-ticket`; match on that field rather than
-on the command line, whose plugin half is configuration and differs per board.
+on the command line, whose plugin half is configuration and differs per project.
 Then `mcp__abacus__move_ticket` with that entry's `leads_to` as the
 `swimlane_id`, and `position: 0`. The destination is stated, so do not count
 lanes yourself — "the one after the lane I matched" is arithmetic whose one
 wrong answer sends every ticket backwards.
 
 This used to be forbidden, and the reason it was is worth knowing: lane meaning
-was per board and free text, so one team's "In Review" was another's "Staging"
+was per project and free text, so one team's "In Review" was another's "Staging"
 and guessing at somebody's workflow was worse than leaving the ticket alone.
-Abacus columns now come from a board schema and say for themselves which skill
+Abacus columns now come from a project schema and say for themselves which skill
 leads into them, so there is nothing left to guess — you are reading the answer,
 not inferring it.
 
 Three cases where you do **not** move it, and each is reported rather than
 retried:
 
-- **No column names this skill.** A Task Tracker board names none at all, and a
-  board on a schema that does not run this process names none either. Leave the
-  ticket where it is and say the board does not describe this step.
+- **No column names this skill.** A Task Tracker project names none at all, and a
+  project on a schema that does not run this process names none either. Leave the
+  ticket where it is and say the project does not describe this step.
 - **The ticket is in no column at all.** A ticket in the backlog has no status
   to change, and the move is refused: *"Plan this ticket for a release, or file
   it under an initiative, before giving it a status."* That is correct — a lane
@@ -269,7 +269,7 @@ and each attempt looks like the first.
 
 `mcp__abacus__record_metric` with the ticket's `id`, `metric: "skill_invoked"`,
 and `subject: "plan-ticket"` — the bare name, never the whole command, because
-the plugin half is configuration and differs per board.
+the plugin half is configuration and differs per project.
 
 **Once, at the end, and only if you did the work.** Not on every turn and not
 when you begin — a skill that reports each time it thinks makes the count
