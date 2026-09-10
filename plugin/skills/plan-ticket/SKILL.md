@@ -112,6 +112,15 @@ ticket up discovers it at the worst moment.
 Distinguish, out loud and in the write-up, **what you verified** from **what
 you inferred**.
 
+**Show the reuse findings before moving on.** Present a short list to the
+user: each item names the existing code (`path:line`), what it does, how
+close it is to what the ticket needs, and your recommendation (extend,
+replace, or duplicate with a noted twin). If the search found nothing
+relevant, say so. Wait for a go-ahead before proceeding to step 3.
+
+This is the first of three checkpoints. The user approves the reuse
+direction here, the step shape in step 4a, and the full plan in step 6.
+
 ## 3. Settle the forks — and only the forks
 
 You should have very few questions. The requirements interview already
@@ -136,6 +145,21 @@ is genuinely open, skip this step and say so.
 
 ## 4. Write an implementation plan someone could follow
 
+### 4a. Show the step shape
+
+Before writing full detail, show the user a table of the planned steps.
+Each row contains: the step number, a one-line title, the files it touches,
+and its Consumes/Produces interfaces. One row per step. No detail beyond
+that.
+
+This is the skeleton the full plan fills in. The user approves the
+decomposition, the ordering, and the interfaces before you invest in the
+detail. If the shape is wrong, the detail is wasted.
+
+Wait for a go-ahead.
+
+### 4b. Write the full plan
+
 Ordered steps, each naming **real paths** — `services/billing.py:212`, not
 "the billing service". A step that names no file is a wish, and the reader
 can't tell a wrong plan from a vague one.
@@ -153,11 +177,12 @@ actually looked.
 Each step in the plan is a design decision. It reflects what a staff-level
 engineer would choose, and it shows the reasoning:
 
-- **Search for reuse before proposing new code.** Name what you searched for
-  and what you found (or that you searched and found nothing). Prefer
-  extending an existing function, component, or pattern over writing a
-  parallel one. When the plan proposes something new, say why the existing
-  alternatives do not fit.
+- **Search for reuse before proposing new code.** Each step opens with a
+  **Reuse:** line that names what existing code this step extends, or says
+  "new — searched for [X] and [Y], nothing fits because [reason]." The
+  reuse findings from step 2 are the source. A step that proposes new code
+  without saying why the existing alternatives do not fit has not earned
+  the new code.
 - **Follow the repo's own conventions.** Each plan step states which existing
   pattern it follows, or why none fits. Naming, layering, file placement,
   error handling: the surrounding code is the spec.
@@ -201,32 +226,59 @@ and belongs in your report as well as in the plan.
 
 ## 5. Write a QA plan that someone can actually execute
 
-This is the section most tickets never get, and the reason defects ship. The
-test is mechanical: **could a person execute each item without asking you what
-you meant?** Each needs a surface, an identity, an input, and an expected
-observable. "Verify it works" fails that test.
+This is the section most tickets never get, and the reason defects ship.
+Write it as a senior QA engineer who has seen production bugs and knows
+where they hide. The test for every item is mechanical: **could a person
+execute it without asking you what you meant?** Each needs a surface, an
+identity, an input, and an expected observable. "Verify it works" fails
+that test.
 
-Work these dimensions and drop the ones that don't apply, rather than padding:
+Start from the implementation plan's steps. For each step, ask: **what
+would a hostile user, a concurrent request, or stale data do to this
+change?** The happy path is the least interesting part of a QA plan.
 
-- **The happy path**, at the privilege tier that actually matters.
-- **Authorization and tenancy** — the wrong role, the neighboring tenant, the
-  logged-out visitor. One admin account proves nothing about access control.
-- **The failure and edge cases this change introduces** — bad input, absent
-  optional data, the boundary values, the second concurrent attempt.
+Work these dimensions and drop the ones that don't apply, rather than
+padding:
+
+- **The happy path**, at the privilege tier that actually matters. One
+  item, with the exact request/response or UI action and expected state.
+- **Authorization and tenancy** — the wrong role, the neighboring tenant,
+  the logged-out visitor. One admin account proves nothing about access
+  control. Name the identity, the action, and the expected refusal.
+- **Edge cases the implementation introduces.** For each step, name the
+  boundary values, the empty/null/missing cases, and the second concurrent
+  attempt. A QA plan that tests only the designed path ships the defects
+  that live one step outside it.
+- **State transitions and ordering.** What happens when steps arrive out
+  of order, when a prerequisite fails partway, or when the same operation
+  runs twice? Idempotency is not assumed; it is verified.
 - **Regression surface** — what *else* reaches this code. Step 2 found the
-  other callers; this is where they get checked.
-- **Data written under the old behavior.** Existing rows rarely match what the
-  new code assumes, and local seed data is pristine and therefore hides it.
+  other callers; this is where they get checked. Name the caller, the
+  input it sends, and the expected output after this change.
+- **Data written under the old behavior.** Existing rows rarely match what
+  the new code assumes, and local seed data is pristine and therefore
+  hides it. Name a row that existed before this change and what should
+  happen to it.
+- **Design cohesion**, when there is UI: review the affected views as a
+  principal designer would. Name each page and viewport to screenshot.
+  Check visual consistency with the surrounding UI: spacing, color tokens,
+  typography, component reuse, and responsive behavior. A new element that
+  does not match the design language of the page it sits on is a defect.
 - **Accessibility**, when there's UI: keyboard reachability, labels and
   semantics, announcement of state changes, contrast.
-- **Post-deploy verification**, when the change only manifests in a deployed
-  environment — name the environment, the check, and who can run it.
+- **Post-deploy verification**, when the change only manifests in a
+  deployed environment — name the environment, the check, and who can
+  run it.
 
 Then separate **what automated tests will cover** from **what needs hands**,
 and name the repo's gates the change implicates — diff coverage on new logic,
 a11y on templates, a dependency or secrets scan on new config. A QA plan that
 duplicates the test suite wastes the tester; one that assumes the suite covers
 the interesting case wastes the release.
+
+For automated tests, name the test file, the test function, and what it
+asserts. For manual verification items, name the exact command or browser
+action, the identity to use, and the expected observable.
 
 Write it knowing **`/colormath:ship` will execute it verbatim** against a
 running stack, and will not edit it. An item that cannot be driven from a
