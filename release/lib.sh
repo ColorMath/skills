@@ -98,5 +98,5 @@ changelog_has_unreleased() { grep -q '^## Unreleased[[:space:]]*$' "$CHANGELOG";
 # arrived in; rewriting any of that would be a silent falsification of history.
 
 write_plugin_version() {
-	sed -i "s|^\([[:space:]]*\"version\"[[:space:]]*:[[:space:]]*\"\)[0-9][0-9.]*\(\"\)|\1${1#v}\2|" "$PLUGIN_JSON"
+	sed -i '' "s|^\([[:space:]]*\"version\"[[:space:]]*:[[:space:]]*\"\)[0-9][0-9.]*\(\"\)|\1${1#v}\2|" "$PLUGIN_JSON"
 }
