@@ -139,10 +139,16 @@ Then scan the plan's steps against each other. Step 3's first pass checked
 each step against the code. This pass checks the steps against one another:
 
 - **Do the interfaces match?** Each step states what it consumes and what it
-  produces. Verify that what step N says it produces is what step N+1 says
+  produces. Verify that what step N says it produces is what step M says
   it consumes — the same function names, the same types, the same data
-  shapes. A mismatch here means two subagents will build to different
-  contracts.
+  shapes. Follow the `Depends on:` annotations, not just adjacent pairs:
+  step 5 may consume from step 2, not step 4. A mismatch here means two
+  subagents will build to different contracts.
+- **Are the dependency annotations consistent?** For each step, verify that
+  its `Depends on:` field matches its `Consumes` field. If a step consumes
+  something from step M's Produces but does not list step M in Depends on,
+  the dependency graph is wrong and the execution strategy in step 5a will
+  be wrong. Flag it and correct the annotation in the ledger.
 - **Do any steps contradict each other?** Two steps that both create the
   same file, or that make incompatible assumptions about the same function,
   will collide when built in sequence.
@@ -186,14 +192,10 @@ Handing the ticket back is one of the two good outcomes here, and it has a
 project move of its own: put the ticket back in the column step 2 took it out of
 before you stop.
 
-## 5. Build it with a workflow
+## 5. Choose the execution strategy and assign models
 
 Branch first — `feat/<ticket-key-slug>` or the repo's own convention — never
 the default branch.
-
-Build a workflow script from the plan steps and run it with the Workflow
-tool. The workflow handles the implementation, review, and fix loop for
-each step, with a live progress bar. You do not dispatch subagents yourself.
 
 ### Write the step briefs
 
@@ -215,44 +217,94 @@ For each plan step, write a brief file to
 
 Each brief is the subagent's requirements. It does not read the whole plan.
 
-### Decide batching and models
+### 5a. Choose execution strategy
 
-Before building the script, decide which steps to batch and which model
-each step gets.
+Read the plan's `Depends on:` annotations and the dependency graph summary.
+Choose one of four strategies:
 
-**Batching:** consecutive steps that modify the same file and are small,
-same-shape edits go into one phase. Each batch becomes one implementer
-agent call in the script.
+1. **Inline** — the main agent implements directly, no subagents. When:
+   1-2 steps, under ~20 lines changed, purely mechanical. The orchestration
+   overhead exceeds the work itself. This is the escape hatch, not the
+   default.
+2. **Sequential subagents** — dispatch one Agent per step, wait for each
+   before the next. When: steps have real dependencies (each consumes the
+   prior step's output) and no parallelizable groups. Keeps the main
+   agent's context clean for orchestration, QA, and shipping.
+3. **Parallel workflow** — launch a Workflow that uses `parallel()` or
+   `pipeline()` for independent step groups. When: 2+ steps can run
+   concurrently per the dependency graph. Steps within a parallel group
+   use worktree isolation if they touch the same files. A workflow script
+   that is just a sequential for-loop of `await agent()` calls is never the
+   right answer; use sequential subagents instead.
+4. **Hybrid** — sequential subagents for implementation, then a parallel
+   workflow for the review phase (fan out independent review dimensions
+   concurrently). When: steps are sequential but the review benefits from
+   multiple independent perspectives.
 
-**Model selection per step:**
+The dependency graph is the input. If no steps are independent, parallel
+adds orchestration cost with no concurrency benefit. If all steps are
+independent, sequential wastes the parallelism the graph offers.
 
-- **Mechanical** (1–2 files, clear spec): `sonnet`
-- **Integration** (multi-file, pattern matching): `sonnet`
-- **Design** (architecture judgment, broad codebase): `opus`
-- **Reviewers**: `sonnet` for most diffs, `opus` for complex or risky ones
-- **Fix-loop escalation**: one tier above the implementer that got stuck
-- **Branch review**: `opus` (most capable)
+### 5b. Assign models per step
 
-### Build and run the workflow script
+For each step (and its reviewer if applicable), assign a model tier:
 
-Build a JavaScript workflow script and pass it to the Workflow tool. The
-script follows this structure:
+- **Sonnet** — mechanical edits, clear spec, pattern-following (1-2 files,
+  existing pattern named in plan).
+- **Opus** — design judgment, broad codebase reasoning, ambiguous
+  requirements, or novel patterns.
+- **Haiku** — trivial single-file edits (config changes, adding one dict
+  entry).
+
+For reviewers: match the implementer's tier unless the diff is unusually
+risky, then bump one tier. For the branch review: always Opus.
+
+Fix-loop escalation: one tier above the implementer that got stuck.
+
+### 5c. Present the execution plan
+
+Show both decisions together in one `AskUserQuestion` with the recommended
+option first. Include the strategy, the dependency reasoning, and a table
+of model assignments. Example:
+
+> 6 steps, all sequential (no parallelizable groups). Recommend:
+> Sequential subagents.
+>
+> | Step | Model | Rationale |
+> |------|-------|-----------|
+> | 1-3: Model + config + serializer | Sonnet | Mechanical, follows existing pattern |
+> | 4: Routes | Sonnet | Follows admin_sponsored_career_images.py |
+> | 5: Template | Opus | Design judgment, custom wrapper |
+> | 6: Tests | Sonnet | Follows existing test patterns |
+> | Branch review | Opus | Cross-step reasoning |
+
+The user sees the full execution plan (strategy + models) before any code
+runs and can override either.
+
+## 6. Execute the chosen strategy
+
+Run the strategy the user approved. Each strategy shares the same
+implement-review-fix loop per step, and all end with a branch review. The
+difference is orchestration.
+
+### Shared: the review and fix loop
+
+Every step, regardless of strategy, follows this cycle:
+
+1. **Implement** — the agent reads its brief and builds.
+2. **Review** — a reviewer checks spec compliance and code quality.
+3. **Fix loop** — up to 5 rounds. Non-minor findings go back to the
+   implementer. On round 4+, escalate the model one tier. If findings
+   remain after 5 rounds, cap and record them.
+
+The branch review at the end is always Opus, always runs, and always
+checks cross-step issues, duplicated logic, and convention violations.
+
+### Shared schemas
+
+All strategies use these schemas for review structured output:
 
 ```javascript
-export const meta = {
-  name: 'implement-<ticket-key>',
-  description: 'Implement <ticket title>',
-  phases: [
-    // one entry per step (or batch), plus review
-    { title: 'Step 1-3: <title>' },
-    { title: 'Review 1-3' },
-    { title: 'Step 4: <title>' },
-    { title: 'Review 4' },
-    // ... one pair per step or batch
-    { title: 'Branch review' },
-  ],
-}
-
 const REVIEW_SCHEMA = {
   type: 'object',
   properties: {
@@ -291,107 +343,97 @@ const RE_REVIEW_SCHEMA = {
   },
   required: ['open'],
 }
-
-// Each step: implement → review → fix loop if needed
-const STEPS = [
-  // generated from plan steps and briefs
-  {
-    phase: 'Step 1-3: <title>',
-    reviewPhase: 'Review 1-3',
-    briefPath: '.colormath/sdd/<key>/step-1-2-3-brief.md',
-    model: 'sonnet',
-  },
-  // ...
-]
-
-const cappedFindings = []
-
-for (const step of STEPS) {
-  phase(step.phase)
-  await agent(
-    `Read ${step.briefPath} — it is your requirements. Implement it, ` +
-    `run the tests, commit. Do not dispatch subagents. If the brief is ` +
-    `ambiguous, decide based on the ticket description and repo ` +
-    `conventions, and note your decision in the commit message.`,
-    { phase: step.phase, model: step.model }
-  )
-
-  phase(step.reviewPhase)
-  const review = await agent(
-    `Review the most recent commits against ${step.briefPath}. ` +
-    `Check spec compliance and code quality.`,
-    { phase: step.reviewPhase, model: 'sonnet', schema: REVIEW_SCHEMA }
-  )
-
-  // fix loop: up to 5 rounds
-  let findings = (review?.findings || [])
-    .filter(f => f.severity !== 'minor')
-  let round = 0
-  while (findings.length > 0 && round < 5) {
-    round++
-    const TIERS = ['haiku', 'sonnet', 'opus']
-    const currentTier = TIERS.indexOf(step.model)
-    const nextTier = Math.min(currentTier + 1, TIERS.length - 1)
-    const fixModel = round >= 4 ? TIERS[nextTier] : step.model
-    await agent(
-      `Fix these findings: ${JSON.stringify(findings)}. ` +
-      `Read ${step.briefPath} for context.`,
-      { phase: step.phase, model: fixModel }
-    )
-    const reReview = await agent(
-      `Re-review: are these findings addressed? ${JSON.stringify(findings)}`,
-      { phase: step.reviewPhase, model: 'sonnet', schema: RE_REVIEW_SCHEMA }
-    )
-    findings = (reReview?.open || []).filter(f => !f.addressed)
-  }
-  if (findings.length > 0) {
-    log(`Step capped at 5 rounds with ${findings.length} open findings`)
-    cappedFindings.push(...findings.map(f => ({ step: step.phase, ...f })))
-  }
-}
-
-// Branch review
-phase('Branch review')
-const branchReview = await agent(
-  'Review the full branch diff for cross-step issues, duplicated ' +
-  'logic, and convention violations.',
-  { phase: 'Branch review', model: 'opus', schema: REVIEW_SCHEMA }
-)
-if (branchReview?.findings?.length) {
-  await agent(
-    `Fix all branch-review findings: ${JSON.stringify(branchReview.findings)}`,
-    { phase: 'Branch review', model: 'opus' }
-  )
-}
-return {
-  branchFindings: branchReview?.findings || [],
-  cappedFindings,
-}
 ```
 
-**This is a template.** Generate the actual script from the plan steps,
-briefs, batching decisions, and model assignments. The structure stays the
-same: implement → review → fix loop per step, then branch review.
+### Strategy 1: Inline
+
+Implement each step yourself, in order. After each step, run the tests.
+When all steps are done, do the branch review by reading the full diff
+yourself. No subagents, no workflow.
+
+This is for 1-2 steps where dispatching an agent costs more than doing the
+work.
+
+### Strategy 2: Sequential subagents
+
+Dispatch one Agent per step, wait for it to complete, then dispatch the
+next. Each agent reads its brief, implements, runs tests, and commits.
+After each agent, dispatch a reviewer agent. Run the fix loop if needed.
+
+After all steps, dispatch the branch review agent (Opus).
+
+```
+for each step:
+  Agent(implement, model=step.model)  →  wait
+  Agent(review, model=reviewer.model) →  wait
+  fix loop if needed
+Agent(branch review, model=opus)
+```
+
+### Strategy 3: Parallel workflow
+
+Build a Workflow script that uses `parallel()` for independent step groups
+and sequential `await` for dependent ones. The dependency graph from the
+plan dictates the structure.
+
+Steps within a parallel group that touch the same files use
+`isolation: "worktree"` to avoid conflicts. Steps that touch disjoint
+files run in the same worktree.
+
+Each step still gets the full implement-review-fix loop. Use `pipeline()`
+when one group feeds the next:
+
+```javascript
+// Example: steps 1,2 are independent; step 3 depends on both
+const [r1, r2] = await parallel([
+  () => implementAndReview(step1),
+  () => implementAndReview(step2),
+])
+const r3 = await implementAndReview(step3)
+```
+
+A workflow script that is just a sequential for-loop of `await agent()`
+calls is never the right answer. If the dependency graph is fully
+sequential, use strategy 2 instead.
 
 Pass the script to the Workflow tool via the `script` parameter. Do not
-write it to a file first. The Workflow tool returns when all phases are
-complete.
+write it to a file first.
 
-### After the workflow
+### Strategy 4: Hybrid
 
-The workflow returns `{ branchFindings, cappedFindings }`.
-`branchFindings` are issues from the whole-branch review.
-`cappedFindings` are per-step issues that hit the 5-round fix cap.
-Both lists go into the ticket comment and PR body at the end. If
-either list is non-empty, report each finding to the user before
-moving to QA.
+Dispatch sequential subagents for implementation (strategy 2), then launch
+a parallel Workflow for the review phase. The workflow fans out independent
+review dimensions concurrently (e.g., spec compliance, security, and
+performance as parallel reviewers).
 
-If the workflow was interrupted (machine sleep, context limit, or user
-interruption), re-invoke the Workflow tool with resumeFromRunId set to the
-prior run's ID. Completed agent() calls with unchanged prompts return
+Use this when steps are sequential but the review benefits from multiple
+independent perspectives that do not need to see each other's output.
+
+### After execution
+
+All strategies produce the same output: `{ branchFindings, cappedFindings }`.
+
+- `branchFindings` — issues from the whole-branch review.
+- `cappedFindings` — per-step issues that hit the 5-round fix cap.
+
+For **inline** (strategy 1), you are the implementer and reviewer. Collect
+your own branch-review findings into `branchFindings` and any capped
+per-step findings into `cappedFindings` so the downstream reporting (ticket
+comment, PR body) works the same way regardless of strategy.
+
+For **sequential subagents** (strategy 2), collect the structured output
+from each reviewer agent into the same shape as the workflow returns.
+
+Both lists go into the ticket comment and PR body at the end. If either
+list is non-empty, report each finding to the user before moving to QA.
+
+If a **workflow** was interrupted (machine sleep, context limit, or user
+interruption), re-invoke the Workflow tool with `resumeFromRunId` set to
+the prior run's ID. Completed `agent()` calls with unchanged prompts return
 cached results. Only the interrupted step and everything after it re-runs.
+This applies only to strategies 3 and 4.
 
-## 6. Execute the QA plan against the running stack
+## 7. Execute the QA plan against the running stack
 
 The QA plan is a list of claims about a running system, and an item counts only
 when you have watched the system agree. A passing test suite is not the QA plan
@@ -415,7 +457,7 @@ document now says it passed.
 Restore what you mutated: rows you created, config you flipped, credentials you
 minted. Local state is yours to change and yours to put back.
 
-## 7. Ship it
+## 8. Ship it
 
 The ticket has been sitting in the right column since step 2, which is what
 `ship` needs: it moves the ticket on from *this* column, and a ticket still in
@@ -446,7 +488,7 @@ Delete the workspace directory (`.colormath/sdd/<ticket-key>/`) after
 extracting the rulings. The git history is the record now. Other tickets'
 directories are not yours to touch.
 
-## 8. Record that you ran
+## 9. Record that you ran
 
 Abacus cannot see this happen. Nothing outside your own run knows a skill
 started, so a run you do not record did not happen as far as the ticket is
@@ -494,8 +536,12 @@ take is worse than a missing row.
   what the change requires, don't create tickets. Note them and move on.
 - **Record what actually happened** in a ticket comment at the end,
   deviations included, and leave the planned fields as the record of intent.
-- **The workflow builds the code; you do not.** Do not write code outside
-  the workflow. Do not dispatch implementation subagents yourself. The
-  Workflow tool handles sequencing, progress, and resume.
-- **Open findings from the workflow go into the ticket comment and PR body.**
-  Do not silently discard them.
+- **The approved strategy builds the code.** For inline, you implement
+  directly. For all other strategies, subagents or the Workflow tool do the
+  building. Do not mix strategies or dispatch agents outside the approved
+  plan.
+- **Present the execution plan before any code runs.** The user sees the
+  strategy, the dependency reasoning, and the model assignments, and can
+  override either.
+- **Open findings go into the ticket comment and PR body.** Do not silently
+  discard them.

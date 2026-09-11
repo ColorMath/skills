@@ -164,11 +164,11 @@ is genuinely open, skip this step and say so.
 Before writing full detail, show the user a table in this format:
 
 ```
-| Step | Title                    | Files                        | Consumes        | Produces           |
-|------|--------------------------|------------------------------|-----------------|--------------------|
-| 1    | Extend PageSpec          | scripts/lib/seed_pages.py    | —               | PageSpec (extended) |
-| 2    | Generalize make_page_step| scripts/lib/seed_pages.py    | PageSpec        | ExtraStep           |
-| 3    | Add career page specs    | scripts/lib/career_pages.py  | PageSpec        | CAREER_PAGE_SPECS   |
+| Step | Title                    | Files                        | Consumes        | Produces           | Depends on |
+|------|--------------------------|------------------------------|-----------------|--------------------|------------|
+| 1    | Extend PageSpec          | scripts/lib/seed_pages.py    | —               | PageSpec (extended) | none       |
+| 2    | Generalize make_page_step| scripts/lib/seed_pages.py    | PageSpec        | ExtraStep           | 1          |
+| 3    | Add career page specs    | scripts/lib/career_pages.py  | PageSpec        | CAREER_PAGE_SPECS   | 1          |
 ```
 
 One row per step. No detail beyond the table. The user approves the
@@ -208,6 +208,7 @@ every step:
 **Files:** `path/to/file.py:100-150`, `path/to/other.py`
 **Consumes:** <exact function names, types, data shapes from earlier steps>
 **Produces:** <exact function names, return types for later steps>
+**Depends on:** <step numbers whose Produces this step's Consumes includes, or "none">
 
 <body: what changes, at which layer, and why>
 ```
@@ -222,6 +223,8 @@ The fields:
 - **Files:** real paths with line ranges.
 - **Consumes/Produces:** exact interfaces so a subagent can pick up this
   step cold.
+- **Depends on:** step numbers derived in 4c from the Consumes/Produces
+  graph. "none" for steps that can start immediately.
 
 Three principles for the body:
 
@@ -252,6 +255,28 @@ Size it honestly. If the work turned out to be bigger than the description
 implies, say so here rather than letting someone discover it mid-build — and
 if it turned out to be *much* bigger, that is a finding about the requirements
 and belongs in your report as well as in the plan.
+
+### 4c. Derive the dependency graph
+
+After writing all steps with their Consumes/Produces interfaces, derive the
+dependencies: if step N's Consumes includes something from step M's Produces,
+step N depends on step M. Write each step's `Depends on:` field from this
+analysis.
+
+Then add a summary section at the bottom of the plan:
+
+```
+## Dependency graph
+
+Steps 1, 2: independent (can run in parallel)
+Step 3: depends on 1
+Steps 4, 5: depend on 3, independent of each other
+Step 6: depends on 4, 5
+```
+
+This is a factual annotation derived from the Consumes/Produces interfaces,
+not an execution recommendation. The implementer uses it to decide how to
+execute.
 
 ## 5. Write a QA plan that someone can actually execute
 
