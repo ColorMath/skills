@@ -550,11 +550,13 @@ Read the ledger and QA results files. Then run the five checks below.
    diff. Flag any plan step that was skipped, half-done, or diverged from
    without a recorded ruling in the ledger.
 
-2. Did QA actually run? Read the QA results file. For each item marked pass,
-   spot-check a sample against the running app (use browser tools via
-   ToolSearch for UI items, curl for API items). You are not re-running the
-   full QA plan. You are verifying that the pass marks are real, not
-   rubber-stamped.
+2. Did QA actually run? First, read the QA plan from the ticket. Read the
+   QA results file. Verify that every item in the QA plan has a
+   corresponding entry in the QA results file. Flag any missing items as
+   blocks-ship. Then, for each item marked pass, spot-check a sample
+   against the running app (use browser tools via ToolSearch for UI items,
+   curl for API items). You are not re-running the full QA plan. You are
+   verifying that the pass marks are real, not rubber-stamped.
 
 3. Does the design match? When the ticket names a design reference, load it
    with DesignSync or the appropriate tool. Screenshot the built page at
