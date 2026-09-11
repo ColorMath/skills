@@ -231,7 +231,9 @@ Choose one of four strategies:
    right answer; use sequential subagents instead.
 4. **Hybrid** — sequential subagents for implementation, then a parallel
    workflow for the review phase (fan out independent review dimensions
-   concurrently). When: steps are sequential but the review benefits from
+   concurrently). Hybrid does not parallelize implementation steps. Only
+   the review fans out. For parallel implementation, use Parallel workflow
+   (strategy 3). When: steps are sequential but the review benefits from
    multiple independent perspectives.
 
 The dependency graph is the input. If no steps are independent, parallel
@@ -262,12 +264,33 @@ Fix-loop escalation: one tier above the implementer that got stuck.
 
 ### 5c. Present the execution plan
 
-Show both decisions together in one `AskUserQuestion` with the recommended
-option first. Include the strategy, the dependency reasoning, and a table
-of model assignments. Example:
+Show a dependency-graph summary first. Then show all four strategies as
+`AskUserQuestion` options, with the recommended option first and a table
+of model assignments. Present all four strategies (or three if Inline
+clearly does not apply). When a strategy is not recommended, say why in
+its option description rather than omitting it.
 
-> 6 steps, all sequential (no parallelizable groups). Recommend:
-> Sequential subagents.
+**Dependency-graph summary (required).** Before the options, show the
+graph as a short list so the user can see which steps could run in
+parallel. Example: "Steps 1, 2, 4 are independent. Step 3 depends on
+1+2. Step 5 depends on 3+4+6. Step 7 depends on all."
+
+**Option descriptions must show what would actually happen:**
+
+- **Inline:** "Main agent does everything directly, no subagents."
+- **Sequential:** "Steps run one at a time: A then B then C then D."
+- **Parallel workflow:** "Independent steps run simultaneously:
+  [1+2+4] in parallel, then 3, then 5, then 7. Saves ~N
+  minutes of wait time."
+- **Hybrid:** "Steps run sequentially, but the review phase fans out
+  N dimensions in parallel."
+
+**Example 1 — fully sequential:**
+
+> 6 steps, all sequential (no parallelizable groups). Dependency graph:
+> each step depends on the one before it.
+>
+> Recommend: Sequential subagents.
 >
 > | Step | Model | Rationale |
 > |------|-------|-----------|
@@ -276,9 +299,43 @@ of model assignments. Example:
 > | 5: Template | Opus | Design judgment, custom wrapper |
 > | 6: Tests | Sonnet | Follows existing test patterns |
 > | Branch review | Opus | Cross-step reasoning |
+>
+> Options:
+> - Sequential subagents (Recommended) — Steps run one at a time:
+>   1 then 2 then 3 then 4 then 5 then 6.
+> - Parallel workflow — No independent groups exist, so parallelism
+>   saves nothing versus the orchestration overhead.
+> - Hybrid — Steps run sequentially, but the review fans out 3
+>   dimensions in parallel.
+> - Inline — 6 steps with design judgment; too large for inline.
 
-The user sees the full execution plan (strategy + models) before any code
-runs and can override either.
+**Example 2 — parallelizable groups:**
+
+> 7 steps. Dependency graph: 1, 2, 4 independent. 3 needs 1+2.
+> 6 needs 1. 5 needs 3+4+6. 7 needs all.
+> Two parallel groups possible. Recommend: Parallel workflow.
+>
+> | Phase | Steps | Model | Runs |
+> |-------|-------|-------|------|
+> | Parallel group 1 | 1+2, 4, 6 | Sonnet | Simultaneously |
+> | Sequential | 3: Routes | Sonnet | After group 1 |
+> | Sequential | 5: Template | Sonnet | After 3 |
+> | Sequential | 7: Tests | Sonnet | After 5 |
+> | Review | Branch review | Opus | After all |
+>
+> Options:
+> - Parallel workflow (Recommended) — Independent steps run
+>   simultaneously: [1+2 (batched), 4, 6] in parallel, then 3, then 5,
+>   then 7. Saves ~3 minutes of wait time.
+> - Sequential subagents — Steps run one at a time: 1 then 2 then 3
+>   then 4 then 5 then 6 then 7. Safe but slower.
+> - Hybrid — Steps run sequentially, but the review fans out 3
+>   dimensions in parallel. Does not capture the implementation
+>   parallelism the graph offers.
+> - Inline — 7 steps; too large for inline.
+
+The user sees the full execution plan (strategy + models + dependency
+graph) before any code runs and can override either.
 
 ## 6. Execute the chosen strategy
 
@@ -733,8 +790,8 @@ take is worse than a missing row.
   building. Do not mix strategies or dispatch agents outside the approved
   plan.
 - **Present the execution plan before any code runs.** The user sees the
-  strategy, the dependency reasoning, and the model assignments, and can
-  override either.
+  dependency graph, the strategy, the dependency reasoning, and the model
+  assignments, and can override either.
 - **Open findings go into the ticket comment and PR body.** Do not silently
   discard them.
 - **The audit runs every time.** It is not optional and it is not skippable.
