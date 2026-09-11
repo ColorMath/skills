@@ -18,8 +18,6 @@ which still covers the gates. This repo's history begins at the extraction.
 
 ## Unreleased
 
-## v5.3.1
-
 PATCH. **Clearer strategy presentation in implement-ticket step 5c.**
 
 ### Changed
