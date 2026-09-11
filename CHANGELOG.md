@@ -18,6 +18,19 @@ which still covers the gates. This repo's history begins at the extraction.
 
 ## Unreleased
 
+## v5.3.1
+
+PATCH. **Clearer strategy presentation in implement-ticket step 5c.**
+
+### Changed
+
+- **`/colormath:implement-ticket`** step 5c now requires a dependency-graph
+  summary before the strategy options. Each option shows what would happen
+  (e.g. which steps run in parallel), not just the strategy name. All four
+  strategies are always presented, with reasons when one is not recommended.
+  A second example with parallelizable groups gives agents a pattern to
+  follow. Step 5a clarifies that Hybrid does not parallelize implementation.
+
 ## v5.3.0 — 2026-09-10
 
 MINOR. **Dependency graph in plans, strategy selection in implementation.**
