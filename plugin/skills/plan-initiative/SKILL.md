@@ -181,8 +181,8 @@ you are wasting their time and should say so.
 
 **Verify the plan format before moving on.** `get_ticket` the ticket again and
 confirm it now carries both a `plan` and a `qa_plan`. Then check the plan uses
-the **per-step template**: each step has Reuse, Pattern, Files, Consumes, and
-Produces fields. A plan that names files but skips the template fields will not
+the **per-step template**: each step has Reuse, Pattern, Files, Consumes,
+Produces, and Depends on fields. A plan that names files but skips the template fields will not
 be picked up by a subagent cleanly — flag it and say which fields are missing,
 but do not block the run on it.
 
@@ -271,7 +271,7 @@ take is worse than a missing row.
   `update_ticket` tool for exactly that reason.
 - **Planned means both fields are set, in the right format.** Verify by
   reading them back. The sub-skill returning is not evidence. Each plan step
-  must carry Reuse, Pattern, Files, Consumes, and Produces fields. A plan
+  must carry Reuse, Pattern, Files, Consumes, Produces, and Depends on fields. A plan
   with placeholders ("TBD", "TODO", "add appropriate error handling", "write
   tests for the above") is not ready.
 - **Carry the reuse ledger, not just decisions.** Each ticket's reuse findings
