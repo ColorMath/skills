@@ -18,6 +18,25 @@ which still covers the gates. This repo's history begins at the extraction.
 
 ## Unreleased
 
+## v5.3.0 — 2026-09-10
+
+MINOR. **Dependency graph in plans, strategy selection in implementation.**
+
+### Changed
+
+- **`/colormath:plan-ticket`** adds a `Depends on:` field to each step,
+  derived from the Consumes/Produces interfaces. A dependency graph summary
+  section is appended to the plan. The 4a step-shape table now includes
+  the field.
+- **`/colormath:implement-ticket`** replaces the always-sequential workflow
+  with a strategy decision step. The agent reads the dependency graph,
+  chooses one of four strategies (inline, sequential subagents, parallel
+  workflow, hybrid), assigns model tiers per step, and presents both to the
+  user before any code runs. Step 3 now validates Depends on annotations.
+  Consecutive same-file steps can be batched into one agent call.
+- **`/colormath:plan-initiative`** adds `Depends on` to its format check
+  and rules.
+
 ## v5.2.0 — 2026-09-10
 
 MINOR. **Subagent-driven planning and workflow-based implementation.**
