@@ -520,25 +520,51 @@ when you finish QA. The verification audit (step 8) and ship (step 9) both need
 it. Tear it down only after step 9 completes, or if you abort and return the
 ticket.
 
+### Tool selection
+
+Each QA item type has one correct tool. Choose it before you work any
+items, and do not substitute.
+
+- **UI items use browser tools.** Never use curl for a UI item. Run
+  ToolSearch for chrome-devtools or playwright. Use whichever is
+  available to drive every UI item: navigate, click, inspect DOM
+  state, take screenshots. Log in through the browser, not through
+  curl.
+- **API items use curl** or an equivalent HTTP client.
+- **Database items use the database client** the repo provides.
+
 ### Tool availability checks
 
-Before working QA items, verify that the tools each item type needs are
-available and functional:
+Enumerate tool capabilities, not just tool existence. Before you mark
+ANY item unverified, run ToolSearch for the specific capability that
+item needs: `upload_file` for file inputs, `click` for buttons, `fill`
+for form fields, `evaluate_script` for JS state, `navigate_page` for
+multi-step flows. Record in the QA results file which capabilities you
+searched for and whether each exists.
 
-- **UI items:** run ToolSearch for chrome-devtools or playwright. If either is
-  available, attempt a basic health check (e.g., navigate to the app's root).
-  If the tool is listed but fails at runtime (Chrome not running, connection
-  refused), that is the same as "not available" — mark items `⚠️` unverified
-  with the specific error as the reason. If the tool works, use it to drive
-  every UI item (navigate, click, inspect DOM state, take screenshots). Never
-  mark a UI item `⚠️` unverified without first confirming that no browser tools
-  exist in the session, and that any listed tools genuinely fail. "No browser
-  available" is a finding you verify, not an assumption you default to.
-- **API items:** verify that curl or an equivalent HTTP client is available.
-  If not, mark items `⚠️` unverified with the reason.
-- **Database items:** verify that the database client the repo uses is
-  available and can connect. If not, mark items `⚠️` unverified with the
-  reason.
+**Attempt workarounds before marking unverified.** An item is
+unverified only after you tried and failed. Specific requirements:
+
+- **File uploads:** use `upload_file` (or the equivalent tool) to
+  inject files into `<input type="file">` elements. Do not claim file
+  uploads are impossible because the OS file picker cannot be driven.
+- **Missing seed data:** create it. A viewer account is a `seed_user`
+  call and a membership insert via `docker compose exec`. Missing data
+  is a solvable problem, not a reason to skip.
+- **Multi-step flows:** chain tool calls (navigate, click, confirm,
+  verify). DevTools can drive any flow that does not leave the browser.
+- **Cropper/canvas interactions:** use `evaluate_script` to call
+  component methods directly if the UI cannot be driven visually.
+
+**"Covered by unit tests" is not a substitute.** Unit tests verify
+code paths. QA verifies the running system. An item covered by tests
+is still unverified if QA did not observe it.
+
+**A tool that disconnects mid-run is not "unavailable."** If a tool
+was working and then loses connection, stop QA and ask the human for
+help reconnecting (AskUserQuestion). Do not fall back to curl,
+database queries, or code reading for items that need browser tools.
+Reconnect first, then continue from where you stopped.
 
 Record the tool availability results at the top of the QA results file
 (see below). The verification audit reads these to confirm you checked.
@@ -579,8 +605,14 @@ minted. Local state is yours to change and yours to put back.
 This step runs every time, even when everything looks clean. The point is
 accountability, not coverage.
 
+**Before dispatching the audit**, if the ticket names a design reference,
+verify that DesignSync is authenticated: call `DesignSync list_projects`.
+If it fails or prompts for login, ask the human to log in
+(AskUserQuestion) and retry until it succeeds. Do this now so the audit
+subagent finds an authenticated session.
+
 Dispatch a separate subagent (Agent tool, **always Opus**, with
-`allowed-tools: ToolSearch Bash Read AskUserQuestion mcp__abacus__get_ticket`)
+`allowed-tools: ToolSearch Bash Read AskUserQuestion DesignSync mcp__abacus__get_ticket`)
 to audit the main agent's work. The subagent has not seen the implementation
 work and checks the main agent's claims with fresh eyes. The main agent must
 not modify, intercept, or retry the subagent to get a cleaner result. One run,
@@ -621,16 +653,28 @@ Read the ledger and QA results files. Then run the five checks below.
    verifying that the pass marks are real, not rubber-stamped.
 
 3. Does the design match? When the ticket names a design reference, load it
-   with DesignSync or the appropriate tool. Screenshot the built page at
-   desktop and mobile widths with browser automation tools (find them via
-   ToolSearch). Compare against the design specs in the ticket description.
-   Report discrepancies. If no design reference exists, skip this check.
+   with DesignSync (the main agent already verified authentication before
+   dispatching you). Do not skip the design check or fall back to the
+   ticket description alone. Screenshot the built page at desktop and
+   mobile widths with browser automation tools (find them via ToolSearch).
+   Compare against the design reference. Report discrepancies. If no
+   design reference exists, skip this check.
 
-4. Were browser tools used when available? Read the tool availability section
-   of the QA results file. If any UI QA items were marked unverified, check
-   whether browser automation tools exist in the session (ToolSearch for
-   chrome-devtools or playwright). If they do exist and work, that unverified
-   mark is a failure of the main agent. Flag it.
+4. Were tools used when available? For EACH item marked `⚠️` unverified
+   in the QA results:
+   - Read the stated reason.
+   - Run ToolSearch for the specific tool that would have done the work
+     (e.g., search `upload_file` if the reason mentions file uploads,
+     search `click` if it mentions interactive flows, search
+     `evaluate_script` if it mentions canvas or JS-driven components).
+   - If the tool exists, the unverified mark is blocks-ship regardless
+     of the explanation. The QA agent had the tool and did not use it.
+   - If the tool genuinely does not exist, the unverified mark is
+     acceptable. State which tool you searched for and confirm it is
+     absent.
+   Do not accept reasonable-sounding explanations. Verify each one
+   independently. The QA agent's job was to try and fail, not to
+   predict failure and skip.
 
 5. Are the commits honest? Read the commit messages (git log main...[branch]).
    Do they describe what actually changed? Run git status to check for
