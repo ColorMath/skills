@@ -18,7 +18,26 @@ which still covers the gates. This repo's history begins at the extraction.
 
 ## Unreleased
 
-MINOR. **`/colormath:ship` leaves a ticket at the step its move lands on.**
+## v5.2.0 — 2026-09-10
+
+MINOR. **Subagent-driven planning and workflow-based implementation.**
+
+### Changed
+
+- **`/colormath:plan-ticket`** now searches for reuse opportunities via
+  subagents, shows three checkpoints (reuse findings, step shape, full plan),
+  uses a per-step template with Reuse/Pattern/Files/Consumes/Produces fields,
+  and writes a stronger QA plan with adversarial edge cases and design
+  cohesion checks for UI tickets.
+
+- **`/colormath:implement-ticket`** now builds via a dynamic Workflow: one
+  agent per plan step with a task reviewer after each, a 5-round fix loop
+  with model escalation (haiku to sonnet to opus), and a whole-branch review
+  before QA. Progress shows natively in `/workflows`.
+
+### Added
+
+- **`/colormath:ship`** leaves a ticket at the step its move lands on.
 
 ### Changed
 
