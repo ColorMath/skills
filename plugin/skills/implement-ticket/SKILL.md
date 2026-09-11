@@ -451,10 +451,15 @@ authorization items need the *wrong* role as well as the right one, and one
 admin account proves nothing about access control.
 
 Work every item and record what you observed: the request and response, the row
-you read back, the screen state. Drive UI items through a browser if one is
-reachable; if none is, mark them `⚠️` unverified and say so plainly rather than
-inferring them from the code the subagents just wrote — which is the least
-trustworthy possible source for whether the UI works.
+you read back, the screen state. UI items must be browser-tested. Before working
+any UI QA item, check whether browser automation tools are available: run
+ToolSearch for chrome-devtools or playwright. If either is available, use it to
+drive every UI item (navigate, click, inspect DOM state, take screenshots).
+Never mark a UI item `⚠️` unverified without first confirming that no browser
+tools exist in the session. "No browser available" is a finding you verify, not
+an assumption you default to. If browser tools genuinely are not available, mark
+the item `⚠️` unverified with "no browser automation tools in session" as the
+reason. Never infer UI behavior from the code the subagents just wrote.
 
 Anything that fails is yours to fix now, then re-run the item. A QA plan item
 that fails and gets shipped anyway is worse than one nobody ran, because the
@@ -463,7 +468,65 @@ document now says it passed.
 Restore what you mutated: rows you created, config you flipped, credentials you
 minted. Local state is yours to change and yours to put back.
 
-## 8. Ship it
+## 8. Verification audit
+
+This step runs every time, even when everything looks clean. The point is
+accountability, not coverage.
+
+Dispatch a separate subagent (Agent tool) to audit the main agent's work.
+The subagent has not seen the implementation work and checks the main
+agent's claims with fresh eyes. The main agent must not modify, intercept,
+or retry the subagent to get a cleaner result. One run, one report, the
+human sees all of it. If the main agent dispatches the subagent a second
+time to get a different answer, that is itself a blocks-ship finding.
+
+The subagent checks:
+
+1. **Did the plan get followed?** Read the ticket's implementation plan.
+   Read the branch diff. Flag any plan step that was skipped, half-done,
+   or diverged from without a recorded ruling in the ledger.
+2. **Did QA actually run?** For each QA item the main agent marked pass,
+   spot-check a sample against the running app (use browser tools via
+   ToolSearch for UI items, curl for API items). The subagent is not
+   re-running the full QA plan. It verifies that the main agent's pass
+   marks are real, not rubber-stamped.
+3. **Does the design match?** When the ticket names a design reference
+   (Claude Design project ID, file name, or Figma link), load it with
+   DesignSync or the appropriate tool. Screenshot the built page at
+   desktop and mobile widths with browser automation tools. Compare
+   against the design specs in the ticket description. Report
+   discrepancies.
+4. **Were browser tools used when available?** If any UI QA items were
+   marked `⚠️` unverified, check whether browser automation tools exist
+   in the session (ToolSearch for chrome-devtools or playwright). If they
+   do exist, that `⚠️` is a failure of the main agent, not a legitimate
+   gap. Flag it.
+5. **Are the commits honest?** Read the commit messages. Do they describe
+   what actually changed? Are there uncommitted changes that should have
+   been included?
+
+The subagent reports directly to the human, not to the main agent.
+
+**Report structure:**
+
+- **blocks-ship findings:** The subagent uses `AskUserQuestion` to
+  surface each finding to the human immediately, with the evidence and
+  what the main agent claimed vs. what actually exists. Options:
+  "Fix and re-audit", "Ship anyway", "I'll handle it". The human
+  decides, not the main agent. The main agent does not get to filter,
+  summarize, or soften the subagent's findings before the human sees
+  them.
+- **note findings:** Included in the ticket comment verbatim. The main
+  agent may not omit or reword them.
+
+**After the audit:**
+
+- Any blocks-ship finding where the human chooses "Fix and re-audit"
+  goes back to the main agent to fix, then the audit subagent runs
+  once more.
+- Note findings go into the ticket comment.
+
+## 9. Ship it
 
 The ticket has been sitting in the right column since step 2, which is what
 `ship` needs: it moves the ticket on from *this* column, and a ticket still in
@@ -494,7 +557,7 @@ Delete the workspace directory (`.colormath/sdd/<ticket-key>/`) after
 extracting the rulings. The git history is the record now. Other tickets'
 directories are not yours to touch.
 
-## 9. Record that you ran
+## 10. Record that you ran
 
 Abacus cannot see this happen. Nothing outside your own run knows a skill
 started, so a run you do not record did not happen as far as the ticket is
