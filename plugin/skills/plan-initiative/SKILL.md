@@ -171,9 +171,9 @@ of the initiative does not have to wait for it.
    Add them to the reuse ledger. If a finding duplicates one already in the
    ledger, keep the version from the ticket that investigated it more deeply.
    If a finding contradicts an earlier one (e.g., an earlier ticket said
-   "extend" but this ticket's deeper investigation says "replace"), update the
-   ledger to the newer recommendation and note the change — the later ticket
-   had more context.
+   "extend" but this ticket says "replace"), keep the recommendation from
+   whichever ticket investigated that code more deeply, regardless of order.
+   Note the conflict and the resolution in the ledger.
 
 Both go into the next ticket's injected context. By ticket five you should be
 asking the user almost nothing they have already told you, and if you are not,
