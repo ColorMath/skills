@@ -419,16 +419,23 @@ gates on the current commit.
 
 Evaluate four gates against the **current** state of the branch:
 
-1. **A review ran, and had no Blockers.** Judged from the thermonuclear review
-   as posted. No review workflow configured, or a review that errored before
-   posting, fails this gate — a clean QA run does not substitute for it. A
-   review the workflow deliberately **skipped** (step 3's `SKIPPED` case — every
-   file matched `skip-paths`) *satisfies* this gate: there is no code to audit,
-   so there is nothing for a Blocker to be in. Say so explicitly when you use
-   it. If the review raised even one **Blocker**, hold for a human — *even if
-   you fixed it*. You still fix it in step 5; a Blocker simply means a person
-   signs off on the merge rather than this skill. Suggestions and nits never
-   block.
+1. **A review ran, and all Blockers (if any) are resolved.** Judged from the
+   thermonuclear review as posted. No review workflow configured, or a review
+   that errored before posting, fails this gate — a clean QA run does not
+   substitute for it. A review the workflow deliberately **skipped** (step 3's
+   `SKIPPED` case — every file matched `skip-paths`) *satisfies* this gate:
+   there is no code to audit, so there is nothing for a Blocker to be in. Say
+   so explicitly when you use it. Suggestions and nits never block.
+
+   A Blocker that was **fixed and verified** satisfies this gate when all three
+   hold:
+   - The fix addresses exactly what the Blocker described (no unrelated changes
+     bundled in).
+   - The relevant QA items re-ran against the running stack and pass.
+   - The fix does not introduce a new pattern, interface, or architectural
+     choice that the original plan did not cover.
+
+   If any of those three is false, hold for a human. When in doubt, hold.
 2. **Every review finding is resolved or consciously dismissed.** Each one is
    either fixed, or dismissed with a written reason in the **Addressed / Not
    changed** comment. Nothing silently skipped, nothing left needing a design
@@ -489,11 +496,12 @@ the default branch.
 - **Never push to the default branch** (`git push origin main`). Merging a PR
   via `gh pr merge` in step 8 is the sanctioned way to land it — that is not the
   same thing.
-- **Fix automatically; don't ask before fixing.** Blockers included (step 5) —
-  fixing a Blocker is automatic, *merging* after one is not. Auto-merge happens
-  **only** from step 8, **only** with all four of its gates satisfied, and
-  **always** with a PR comment posted first. If any gate fails, hold and explain — never
-  merge on a silent or failed review, or on QA that couldn't run.
+- **Fix automatically; don't ask before fixing.** Blockers included (step 5).
+  Auto-merge happens **only** from step 8, **only** with all four of its gates
+  satisfied, and **always** with a PR comment posted first. A fixed Blocker can
+  satisfy gate 1 when the fix is scoped, verified, and within the plan (see
+  gate 1's three criteria). If any gate fails, hold and explain — never merge
+  on a silent or failed review, or on QA that couldn't run.
 - **One review per run.** Read the thermonuclear review once (step 3), respond
   to it and do the QA (steps 4–5), then move the ticket and decide (steps
   7–8). Never comment `@claude`
