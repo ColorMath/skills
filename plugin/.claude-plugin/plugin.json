@@ -1,7 +1,7 @@
 {
   "name": "colormath",
   "description": "Claude Code skills for repos built on the colormath (ColorMath/ci) shared infrastructure \u2014 gates, review pipeline, and release rituals.",
-  "version": "5.3.0",
+  "version": "5.3.1",
   "author": {
     "name": "Craig Booth"
   },
