@@ -85,7 +85,7 @@ jobs, migrations and config. You are answering, for yourself:
   convenience — a fix in a route that belonged in a service passes review and
   rots.
 - **What else reaches this code.** Every other caller of the function you are
-  about to change is regression surface, and step 5 is where they get checked.
+  about to change is regression surface, and the QA plan is where they get checked.
 - **What the existing tests already cover**, so the QA plan doesn't duplicate
   the suite, and so you can see what the suite is blind to.
 - **What has moved since the description was written.** Files get renamed,
@@ -112,11 +112,23 @@ ticket up discovers it at the worst moment.
 Distinguish, out loud and in the write-up, **what you verified** from **what
 you inferred**.
 
-**Show the reuse findings before moving on.** Present a short list to the
-user: each item names the existing code (`path:line`), what it does, how
-close it is to what the ticket needs, and your recommendation (extend,
-replace, or duplicate with a noted twin). If the search found nothing
-relevant, say so. Wait for a go-ahead before proceeding to step 3.
+**Show the reuse findings before moving on.** Present them in this format:
+
+```
+## Reuse findings
+
+- `services/page_service.py:208` — get_page_for_career() looks up by SOC
+  code. Recommend: **extend** (add the new lookup this ticket needs)
+- `scripts/lib/seed_pages.py:102` — make_page_step() seeds org pages.
+  Recommend: **extend** (generalize to all page types)
+- No existing abstraction for standalone page seeding.
+  Recommend: **new** (searched seed_pages, page_service, seed_demo)
+```
+
+Each item names the code (`path:line`), what it does, and a recommendation
+(extend, replace, duplicate, or new with what you searched). If the search
+found nothing relevant, say so. Wait for a go-ahead before proceeding to
+step 3.
 
 This is the first of three checkpoints. The user approves the reuse
 direction here, the step shape in step 4a, and the full plan in step 6.
@@ -147,12 +159,17 @@ is genuinely open, skip this step and say so.
 
 ### 4a. Show the step shape
 
-Before writing full detail, show the user a table of the planned steps.
-Each row contains: the step number, a one-line title, the files it touches,
-and its Consumes/Produces interfaces. One row per step. No detail beyond
-that.
+Before writing full detail, show the user a table in this format:
 
-This is the skeleton the full plan fills in. The user approves the
+```
+| Step | Title                    | Files                        | Consumes        | Produces           |
+|------|--------------------------|------------------------------|-----------------|--------------------|
+| 1    | Extend PageSpec          | scripts/lib/seed_pages.py    | —               | PageSpec (extended) |
+| 2    | Generalize make_page_step| scripts/lib/seed_pages.py    | PageSpec        | ExtraStep           |
+| 3    | Add career page specs    | scripts/lib/career_pages.py  | PageSpec        | CAREER_PAGE_SPECS   |
+```
+
+One row per step. No detail beyond the table. The user approves the
 decomposition, the ordering, and the interfaces before you invest in the
 detail. If the shape is wrong, the detail is wasted.
 
@@ -175,39 +192,45 @@ when deploy order matters. Include **what explicitly does not need to change**
 actually looked.
 
 Each step in the plan is a design decision. It reflects what a staff-level
-engineer would choose, and it shows the reasoning:
+engineer would choose, and it shows the reasoning. Use this template for
+every step:
 
-- **Search for reuse before proposing new code.** Each step opens with a
-  **Reuse:** line that names what existing code this step extends, or says
-  "new — searched for [X] and [Y], nothing fits because [reason]." The
-  reuse findings from step 2 are the source. A step that proposes new code
-  without saying why the existing alternatives do not fit has not earned
-  the new code.
-- **Follow the repo's own conventions.** Each plan step states which existing
-  pattern it follows, or why none fits. Naming, layering, file placement,
-  error handling: the surrounding code is the spec.
+```
+### Step N: <title>
+
+**Reuse:** extends `path:line` — <what it does and why extending fits>
+  (or: new — searched [X] and [Y], nothing fits because [reason])
+**Pattern:** follows <existing pattern name> | new because <reason>
+**Files:** `path/to/file.py:100-150`, `path/to/other.py`
+**Consumes:** <exact function names, types, data shapes from earlier steps>
+**Produces:** <exact function names, return types for later steps>
+
+<body: what changes, at which layer, and why>
+```
+
+The fields:
+
+- **Reuse:** names what existing code this step extends. The reuse findings
+  from step 2 are the source. When proposing new code, say what you
+  searched and why nothing fits.
+- **Pattern:** names which repo convention this step follows, or why none
+  fits. Naming, layering, file placement: the surrounding code is the spec.
+- **Files:** real paths with line ranges.
+- **Consumes/Produces:** exact interfaces so a subagent can pick up this
+  step cold.
+
+Three principles for the body:
+
 - **Prefer the boring solution.** Fewest moving parts, least new surface
-  area, the approach a future reader will understand without archaeology.
-  Between two designs that solve the problem, the simpler one wins.
-- **Name the near-duplicates and decide.** Step 2 found code that does almost
-  the same thing. The plan writes the decision about each one: extend it,
-  replace it, or deliberately duplicate and note the twin.
-- **Size the abstraction to its callers.** Extract shared logic when the same
-  concept appears a third time, with callers that exist today. A wrong
-  abstraction is more expensive than duplication.
+  area. Between two designs that solve the problem, the simpler one wins.
+- **Size the abstraction to its callers.** Extract shared logic when the
+  same concept appears a third time, with callers that exist today. A
+  wrong abstraction is more expensive than duplication.
 - **Delete when you can.** A plan that removes code is often stronger than
   one that adds it. If the change makes something obsolete, say so.
 
-Each step also states its **interfaces** under two labeled sections:
-
-- **Consumes:** what this step uses from earlier steps — exact function
-  names, types, and data shapes.
-- **Produces:** what later steps rely on — exact function names, parameter
-  and return types.
-
 A step that a subagent could pick up cold and build without reading the
-rest of the plan is the right size. A step that requires the whole plan for
-context is too tangled to review or test alone.
+rest of the plan is the right size.
 
 **No placeholders.** Every step contains what the builder needs. These are
 plan failures: "TBD", "TODO", "add appropriate error handling", "add

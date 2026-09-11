@@ -248,6 +248,45 @@ export const meta = {
   ],
 }
 
+const REVIEW_SCHEMA = {
+  type: 'object',
+  properties: {
+    verdict: { type: 'string', enum: ['pass', 'fail'] },
+    findings: {
+      type: 'array',
+      items: {
+        type: 'object',
+        properties: {
+          summary: { type: 'string' },
+          severity: { type: 'string', enum: ['critical', 'important', 'minor'] },
+          file: { type: 'string' },
+        },
+        required: ['summary', 'severity'],
+      },
+    },
+  },
+  required: ['verdict', 'findings'],
+}
+
+const RE_REVIEW_SCHEMA = {
+  type: 'object',
+  properties: {
+    open: {
+      type: 'array',
+      items: {
+        type: 'object',
+        properties: {
+          summary: { type: 'string' },
+          severity: { type: 'string' },
+          addressed: { type: 'boolean' },
+        },
+        required: ['summary', 'addressed'],
+      },
+    },
+  },
+  required: ['open'],
+}
+
 // Each step: implement → review → fix loop if needed
 const STEPS = [
   // generated from plan steps and briefs
@@ -260,9 +299,11 @@ const STEPS = [
   // ...
 ]
 
+const cappedFindings = []
+
 for (const step of STEPS) {
   phase(step.phase)
-  const impl = await agent(
+  await agent(
     `Read ${step.briefPath} — it is your requirements. Implement it, ` +
     `run the tests, commit. Do not dispatch subagents.`,
     { phase: step.phase, model: step.model }
@@ -271,12 +312,13 @@ for (const step of STEPS) {
   phase(step.reviewPhase)
   const review = await agent(
     `Review the most recent commits against ${step.briefPath}. ` +
-    `Check spec compliance and code quality. Report findings.`,
-    { phase: step.reviewPhase, model: 'sonnet' }
+    `Check spec compliance and code quality.`,
+    { phase: step.reviewPhase, model: 'sonnet', schema: REVIEW_SCHEMA }
   )
 
   // fix loop: up to 5 rounds
-  let findings = review?.findings || []
+  let findings = (review?.findings || [])
+    .filter(f => f.severity !== 'minor')
   let round = 0
   while (findings.length > 0 && round < 5) {
     round++
@@ -288,12 +330,13 @@ for (const step of STEPS) {
     )
     const reReview = await agent(
       `Re-review: are these findings addressed? ${JSON.stringify(findings)}`,
-      { phase: step.reviewPhase, model: 'sonnet' }
+      { phase: step.reviewPhase, model: 'sonnet', schema: RE_REVIEW_SCHEMA }
     )
-    findings = reReview?.open || []
+    findings = (reReview?.open || []).filter(f => !f.addressed)
   }
   if (findings.length > 0) {
     log(`Step capped at 5 rounds with ${findings.length} open findings`)
+    cappedFindings.push(...findings.map(f => ({ step: step.phase, ...f })))
   }
 }
 
@@ -301,8 +344,8 @@ for (const step of STEPS) {
 phase('Branch review')
 const branchReview = await agent(
   'Review the full branch diff for cross-step issues, duplicated ' +
-  'logic, and convention violations. Report findings.',
-  { phase: 'Branch review', model: 'opus' }
+  'logic, and convention violations.',
+  { phase: 'Branch review', model: 'opus', schema: REVIEW_SCHEMA }
 )
 if (branchReview?.findings?.length) {
   await agent(
@@ -310,7 +353,10 @@ if (branchReview?.findings?.length) {
     { phase: 'Branch review', model: 'opus' }
   )
 }
-return { findings: branchReview?.findings || [] }
+return {
+  branchFindings: branchReview?.findings || [],
+  cappedFindings,
+}
 ```
 
 **This is a template.** Generate the actual script from the plan steps,
@@ -323,8 +369,12 @@ complete.
 
 ### After the workflow
 
-Read the workflow result. Collect any open findings or rulings. These go
-into the ticket comment and PR body at the end.
+The workflow returns `{ branchFindings, cappedFindings }`.
+`branchFindings` are issues from the whole-branch review.
+`cappedFindings` are per-step issues that hit the 5-round fix cap.
+Both lists go into the ticket comment and PR body at the end. If
+either list is non-empty, report each finding to the user before
+moving to QA.
 
 ## 6. Execute the QA plan against the running stack
 
