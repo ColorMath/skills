@@ -2,7 +2,7 @@
 name: implement-ticket
 description: Take a planned ticket all the way to a shipped PR — check its plan still matches the code, ask only what genuinely blocks, build it at the layer the plan names, execute its QA plan against the running stack, then hand off to /colormath:ship. Use this when someone says to implement, build, do, or work a ticket that has already been groomed, or names a ticket key and says "go". Not for grooming (that's /colormath:gather-requirements, then /colormath:plan-ticket) and not for a defect report (that's /colormath:bugfix).
 argument-hint: [ticket key, e.g. CM-00012]
-allowed-tools: Agent Workflow Bash Read Edit Write Grep Glob Skill AskUserQuestion mcp__abacus__get_ticket mcp__abacus__record_metric mcp__abacus__add_comment mcp__abacus__get_project mcp__abacus__move_ticket mcp__abacus__list_projects mcp__abacus__list_tickets
+allowed-tools: Agent Workflow Bash Read Edit Write Grep Glob Skill AskUserQuestion ToolSearch mcp__abacus__get_ticket mcp__abacus__record_metric mcp__abacus__add_comment mcp__abacus__get_project mcp__abacus__move_ticket mcp__abacus__list_projects mcp__abacus__list_tickets
 ---
 
 Implement the ticket in "$ARGUMENTS", QA it, and ship it.
@@ -95,9 +95,9 @@ then goes through the PR pipeline is `ship`'s move to make, one column further
 on — which is also why the ticket has to be *here* before ship runs, rather than
 still in the column behind it.
 
-**Put it back if you hand the ticket off instead.** Steps 3 and 4 can end with
-the plan no longer describing the code and the ticket going back to
-`/colormath:plan-ticket` or `/colormath:gather-requirements`. When that happens,
+**Put it back if you hand the ticket off instead.** Steps 3 through 6 can end
+with the plan no longer describing the code, a blocker that cannot be resolved,
+or execution that failed beyond recovery. When any of those happens,
 `move_ticket` it to the `swimlane_id` you kept in step 1, say in your report
 that you did, and stop. A ticket parked in Implementing with nobody implementing
 it is a worse lie than the one this step exists to correct.
@@ -115,7 +115,7 @@ Three cases where you do not move it, each reported rather than retried:
   wrong column is a smaller problem than a report claiming a move that did not
   happen — and a smaller problem than not building the ticket.
 
-## 3. Check the plan against the code before you touch anything
+## 3. Check the plan and resolve blockers
 
 Walk the plan step by step with the repo open. For each step:
 
@@ -130,13 +130,7 @@ Walk the plan step by step with the repo open. For each step:
   ADRs, the rules files. A plan that was fine in March can violate a decision
   recorded in April, and the decision wins.
 
-Where the plan holds, say so briefly and move on. Where it does not, that is a
-**finding**, and it goes to the user in step 4 rather than being quietly
-routed around. Silently improving a plan is how a reviewed decision gets
-replaced by an unreviewed one.
-
-Then scan the plan's steps against each other. Step 3's first pass checked
-each step against the code. This pass checks the steps against one another:
+Then scan the plan's steps against each other:
 
 - **Do the interfaces match?** Each step states what it consumes and what it
   produces. Verify that what step N says it produces is what step M says
@@ -147,7 +141,7 @@ each step against the code. This pass checks the steps against one another:
 - **Are the dependency annotations consistent?** For each step, verify that
   its `Depends on:` field matches its `Consumes` field. If a step consumes
   something from step M's Produces but does not list step M in Depends on,
-  the dependency graph is wrong and the execution strategy in step 5a will
+  the dependency graph is wrong and the execution strategy in step 5 will
   be wrong. Flag it and correct the annotation in the ledger.
 - **Do any steps contradict each other?** Two steps that both create the
   same file, or that make incompatible assumptions about the same function,
@@ -170,11 +164,10 @@ initiative are the authorities. Record each ruling in the ledger as
 `Ruling: <decision> — <why> — <cost if wrong>`. If the scan is clean,
 proceed without comment.
 
-## 4. Ask only what actually blocks you
-
-By this point there usually is nothing to ask — grooming's whole job was to
-remove these, and a skill that reopens settled questions has wasted the
-grooming. Ask only when you genuinely cannot proceed:
+**If you cannot proceed, ask.** By this point there usually is nothing to
+ask — grooming's whole job was to remove these, and a skill that reopens
+settled questions has wasted the grooming. Ask only when you genuinely
+cannot proceed:
 
 - the plan no longer matches the code and there is a real choice about what to
   do instead;
@@ -192,12 +185,10 @@ Handing the ticket back is one of the two good outcomes here, and it has a
 project move of its own: put the ticket back in the column step 2 took it out of
 before you stop.
 
-## 5. Choose the execution strategy and assign models
+## 4. Prepare step briefs
 
 Branch first — `feat/<ticket-key-slug>` or the repo's own convention — never
 the default branch.
-
-### Write the step briefs
 
 For each plan step, write a brief file to
 `.colormath/sdd/<ticket-key>/step-<N>-brief.md`. The brief contains:
@@ -216,6 +207,8 @@ For each plan step, write a brief file to
   those decisions.
 
 Each brief is the subagent's requirements. It does not read the whole plan.
+
+## 5. Choose the execution strategy and assign models
 
 ### 5a. Choose execution strategy
 
@@ -376,6 +369,12 @@ for each step:
 Agent(branch review, model=opus)
 ```
 
+**Context-limit recovery:** if the main agent hits its context limit
+between step dispatches, the resumed session must read the ledger
+(`.colormath/sdd/<ticket-key>/progress.md`), check which steps have
+commits on the branch, and continue from the first step that has no
+commit. Do not re-dispatch steps that already committed their work.
+
 ### Strategy 3: Parallel workflow
 
 Build a Workflow script that uses `parallel()` for independent step groups
@@ -433,6 +432,13 @@ from each reviewer agent into the same shape as the workflow returns.
 Both lists go into the ticket comment and PR body at the end. If either
 list is non-empty, report each finding to the user before moving to QA.
 
+**Capped findings go to the human.** If any step hit its 5-round fix cap,
+present the capped findings via `AskUserQuestion` before moving to QA.
+Options: "Fix these before QA" (you fix them, then continue), "Continue to
+QA anyway" (ship with the findings noted), "I'll handle it" (you stop and
+the human takes over). The human decides whether capped findings are
+acceptable, not the main agent.
+
 If a **workflow** was interrupted (machine sleep, context limit, or user
 interruption), re-invoke the Workflow tool with `resumeFromRunId` set to
 the prior run's ID. Completed `agent()` calls with unchanged prompts return
@@ -445,25 +451,187 @@ The QA plan is a list of claims about a running system, and an item counts only
 when you have watched the system agree. A passing test suite is not the QA plan
 — it is one of the things the QA plan usually says to check.
 
-Bring the stack up the way the repo does it (`make up-dev` or its equivalent),
-and follow `/colormath:qa`'s recon discipline for identities and seeded data —
+Bring the stack up the way the repo does it (`make up-dev` or its equivalent).
+If the stack does not start, report the error and return the ticket (move it
+back to the column step 2 took it out of). QA requires a running system. Do not
+skip QA and proceed to ship.
+
+Follow `/colormath:qa`'s recon discipline for identities and seeded data —
 authorization items need the *wrong* role as well as the right one, and one
-admin account proves nothing about access control.
+admin account proves nothing about access control. **Leave the stack running**
+when you finish QA. The verification audit (step 8) and ship (step 9) both need
+it. Tear it down only after step 9 completes, or if you abort and return the
+ticket.
+
+### Tool availability checks
+
+Before working QA items, verify that the tools each item type needs are
+available and functional:
+
+- **UI items:** run ToolSearch for chrome-devtools or playwright. If either is
+  available, attempt a basic health check (e.g., navigate to the app's root).
+  If the tool is listed but fails at runtime (Chrome not running, connection
+  refused), that is the same as "not available" — mark items `⚠️` unverified
+  with the specific error as the reason. If the tool works, use it to drive
+  every UI item (navigate, click, inspect DOM state, take screenshots). Never
+  mark a UI item `⚠️` unverified without first confirming that no browser tools
+  exist in the session, and that any listed tools genuinely fail. "No browser
+  available" is a finding you verify, not an assumption you default to.
+- **API items:** verify that curl or an equivalent HTTP client is available.
+  If not, mark items `⚠️` unverified with the reason.
+- **Database items:** verify that the database client the repo uses is
+  available and can connect. If not, mark items `⚠️` unverified with the
+  reason.
+
+Record the tool availability results at the top of the QA results file
+(see below). The verification audit reads these to confirm you checked.
+
+### Working the items
 
 Work every item and record what you observed: the request and response, the row
-you read back, the screen state. Drive UI items through a browser if one is
-reachable; if none is, mark them `⚠️` unverified and say so plainly rather than
-inferring them from the code the subagents just wrote — which is the least
-trustworthy possible source for whether the UI works.
+you read back, the screen state. Never infer behavior from the code the
+subagents just wrote.
 
 Anything that fails is yours to fix now, then re-run the item. A QA plan item
 that fails and gets shipped anyway is worse than one nobody ran, because the
 document now says it passed.
 
+### Persisting QA results
+
+Write QA results to `.colormath/sdd/<ticket-key>/qa-results.md` before
+proceeding to step 8. The file must contain:
+
+- **Tool availability:** which tools were checked, which were available, and
+  which failed (with the error).
+- **Per-item results:** each QA item with its verdict (`✅` pass, `❌` fail and
+  what you did to fix it, or `⚠️` unverified with the specific reason), the
+  observation (what you saw), and the evidence (the curl output, the
+  screenshot path, the DOM state).
+
+This file is the audit subagent's primary input for verifying your QA claims.
+It must exist before you dispatch the audit. Do not write it from memory after
+the audit asks for it.
+
+### Cleanup
+
 Restore what you mutated: rows you created, config you flipped, credentials you
 minted. Local state is yours to change and yours to put back.
 
-## 8. Ship it
+## 8. Verification audit
+
+This step runs every time, even when everything looks clean. The point is
+accountability, not coverage.
+
+Dispatch a separate subagent (Agent tool, **always Opus**, with
+`allowed-tools: ToolSearch Bash Read AskUserQuestion mcp__abacus__get_ticket`)
+to audit the main agent's work. The subagent has not seen the implementation
+work and checks the main agent's claims with fresh eyes. The main agent must
+not modify, intercept, or retry the subagent to get a cleaner result. One run,
+one report, the human sees all of it. If the main agent dispatches the subagent
+a second time to get a different answer, that is itself a blocks-ship finding.
+
+### Audit prompt template
+
+The main agent must use this template for the audit subagent's prompt. Only the
+bracketed values change. Do not add summaries, framing, or commentary about the
+main agent's own work. The auditor reads the sources itself.
+
+```
+You are an independent auditor. You check another agent's implementation work.
+You have not seen any of that work and you form your own conclusions from the
+sources below.
+
+Ticket key: [key]
+Branch: [branch name]
+Ledger: [path to .colormath/sdd/<ticket-key>/progress.md]
+QA results: [path to .colormath/sdd/<ticket-key>/qa-results.md]
+Design reference: [ticket's design reference, or "none"]
+
+Read the ticket (mcp__abacus__get_ticket with the key above) for the
+implementation plan and QA plan. Read the branch diff (git diff main...[branch]).
+Read the ledger and QA results files. Then run the five checks below.
+
+1. Did the plan get followed? Read the implementation plan. Read the branch
+   diff. Flag any plan step that was skipped, half-done, or diverged from
+   without a recorded ruling in the ledger.
+
+2. Did QA actually run? First, read the QA plan from the ticket. Read the
+   QA results file. Verify that every item in the QA plan has a
+   corresponding entry in the QA results file. Flag any missing items as
+   blocks-ship. Then, for each item marked pass, spot-check a sample
+   against the running app (use browser tools via ToolSearch for UI items,
+   curl for API items). You are not re-running the full QA plan. You are
+   verifying that the pass marks are real, not rubber-stamped.
+
+3. Does the design match? When the ticket names a design reference, load it
+   with DesignSync or the appropriate tool. Screenshot the built page at
+   desktop and mobile widths with browser automation tools (find them via
+   ToolSearch). Compare against the design specs in the ticket description.
+   Report discrepancies. If no design reference exists, skip this check.
+
+4. Were browser tools used when available? Read the tool availability section
+   of the QA results file. If any UI QA items were marked unverified, check
+   whether browser automation tools exist in the session (ToolSearch for
+   chrome-devtools or playwright). If they do exist and work, that unverified
+   mark is a failure of the main agent. Flag it.
+
+5. Are the commits honest? Read the commit messages (git log main...[branch]).
+   Do they describe what actually changed? Run git status to check for
+   uncommitted changes that should have been included.
+
+Report each finding as blocks-ship or note.
+
+For each blocks-ship finding, use AskUserQuestion to present it to the human
+immediately. Include the evidence and what the QA results or ledger claimed
+vs. what you actually found. Options: "Fix and re-audit", "Ship anyway",
+"Dismiss — finding is incorrect", "I'll handle it".
+
+For note findings, list them at the end of your report. The main agent will
+include them verbatim in the ticket comment.
+```
+
+### For large tickets
+
+If the branch diff exceeds 800 lines or touches more than 15 files, the audit
+subagent should prioritize: check the highest-risk plan steps (new files, novel
+patterns, security-sensitive changes) and spot-check a representative sample of
+QA items rather than attempting to hold the entire diff in context. State which
+steps and items were checked and which were sampled.
+
+### After the audit
+
+The subagent reports directly to the human, not to the main agent.
+
+**Report structure:**
+
+- **blocks-ship findings:** The subagent uses `AskUserQuestion` to
+  surface each finding to the human immediately, with the evidence and
+  what the main agent claimed vs. what actually exists. Options:
+  "Fix and re-audit", "Ship anyway", "Dismiss — finding is incorrect",
+  "I'll handle it". The human decides, not the main agent. The main
+  agent does not get to filter, summarize, or soften the subagent's
+  findings before the human sees them.
+- **note findings:** Included in the ticket comment verbatim. The main
+  agent may not omit or reword them.
+
+**Responding to the human's choices:**
+
+- **"Fix and re-audit"** — the main agent fixes the cited issue. Then the
+  audit subagent runs once more. This is the one permitted re-dispatch.
+  The re-audit prompt must be identical to the template above, with one
+  addition: a line stating which finding was fixed and the commit that
+  fixed it. The re-audit checks only the fix and any downstream effects,
+  not the full audit again.
+- **"Ship anyway"** — the finding is real but acceptable. It goes into the
+  ticket comment as a known issue.
+- **"Dismiss — finding is incorrect"** — the human determined the auditor
+  was wrong. No action needed. Record the dismissal in the ticket comment
+  with the original finding text verbatim and the human's reason for
+  dismissal. The main agent must not paraphrase or characterize the
+  finding in its own words.
+- **"I'll handle it"** — the human takes responsibility. Stop and report.
+
+## 9. Ship it
 
 The ticket has been sitting in the right column since step 2, which is what
 `ship` needs: it moves the ticket on from *this* column, and a ticket still in
@@ -476,15 +644,23 @@ same QA plan against the running stack, fixes for what turns up, either an
 auto-merge when the PR is genuinely clean or a hold with the reason — and the
 next move on the project.
 
+Ship's QA pass is not redundant with step 7. Step 7 runs QA against the branch
+as built. Ship runs QA after the PR review and any review-driven fixes, which
+means the code may have changed since step 7. Ship's pass verifies the final
+state, not the pre-review state.
+
 Give ship a title naming the change in the ticket's own terms, and a body that
 carries what a reviewer cannot reconstruct: **the ticket key and what it asked
 for**, **where the plan held and where it did not**, **the QA plan's results
-including anything unverified**, and any deviation you made and why.
+including anything unverified**, the **audit findings** (both blocks-ship
+outcomes and note findings, verbatim), and any deviation you made and why.
 
 When ship comes back, `add_comment` on the ticket with the outcome — the PR
 link, whether it merged or is held, the deviations, the `branchFindings`
-and `cappedFindings` from the workflow result, and any rulings recorded in
-the ledger (`.colormath/sdd/<ticket-key>/progress.md`). Extract the rulings
+and `cappedFindings` from the workflow result, the **audit note findings
+verbatim**, any rulings recorded in the ledger
+(`.colormath/sdd/<ticket-key>/progress.md`), and any audit findings the human
+dismissed or shipped anyway (with the human's choice noted). Extract the rulings
 from the ledger before deleting the workspace. That comment is how the
 ticket stops being a plan and becomes a record. Leave the ticket's own
 fields alone: `plan` and `qa_plan` are what was intended, and the comment
@@ -494,7 +670,11 @@ Delete the workspace directory (`.colormath/sdd/<ticket-key>/`) after
 extracting the rulings. The git history is the record now. Other tickets'
 directories are not yours to touch.
 
-## 9. Record that you ran
+**Tear down the stack** after ship completes (or after you abort and return
+the ticket). The stack was brought up in step 7 and kept running through
+steps 8 and 9. It is yours to stop.
+
+## 10. Record that you ran
 
 Abacus cannot see this happen. Nothing outside your own run knows a skill
 started, so a run you do not record did not happen as far as the ticket is
@@ -538,6 +718,12 @@ take is worse than a missing row.
   that decision and has the gates to make it.
 - **QA is executed, not asserted.** Every item gets an observation. Unverified
   is a legitimate result and gets marked; assumed is not.
+- **QA results are persisted.** Write them to
+  `.colormath/sdd/<ticket-key>/qa-results.md` before dispatching the audit.
+  The audit reads this file. It must exist.
+- **Tool availability is verified, not assumed.** Check that browser, HTTP, and
+  database tools exist and work before marking any QA item unverified. Record
+  what you checked.
 - **One ticket.** Don't implement its neighbours, don't fix adjacent bugs beyond
   what the change requires, don't create tickets. Note them and move on.
 - **Record what actually happened** in a ticket comment at the end,
@@ -551,3 +737,11 @@ take is worse than a missing row.
   override either.
 - **Open findings go into the ticket comment and PR body.** Do not silently
   discard them.
+- **The audit runs every time.** It is not optional and it is not skippable.
+  The audit subagent is always Opus. One run, one report. The only permitted
+  re-dispatch is after the human chooses "Fix and re-audit."
+- **The audit prompt uses the template.** Do not add summaries, framing, or
+  commentary about your own work. The auditor reads the sources itself.
+- **Audit findings go to the human unfiltered.** The main agent does not
+  edit, reword, omit, or soften audit findings. Note findings go into the
+  ticket comment verbatim.
