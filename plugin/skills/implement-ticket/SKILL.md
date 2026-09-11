@@ -451,8 +451,12 @@ The QA plan is a list of claims about a running system, and an item counts only
 when you have watched the system agree. A passing test suite is not the QA plan
 — it is one of the things the QA plan usually says to check.
 
-Bring the stack up the way the repo does it (`make up-dev` or its equivalent),
-and follow `/colormath:qa`'s recon discipline for identities and seeded data —
+Bring the stack up the way the repo does it (`make up-dev` or its equivalent).
+If the stack does not start, report the error and return the ticket (move it
+back to the column step 2 took it out of). QA requires a running system. Do not
+skip QA and proceed to ship.
+
+Follow `/colormath:qa`'s recon discipline for identities and seeded data —
 authorization items need the *wrong* role as well as the right one, and one
 admin account proves nothing about access control. **Leave the stack running**
 when you finish QA. The verification audit (step 8) and ship (step 9) both need
@@ -518,12 +522,13 @@ minted. Local state is yours to change and yours to put back.
 This step runs every time, even when everything looks clean. The point is
 accountability, not coverage.
 
-Dispatch a separate subagent (Agent tool, **always Opus**) to audit the main
-agent's work. The subagent has not seen the implementation work and checks the
-main agent's claims with fresh eyes. The main agent must not modify, intercept,
-or retry the subagent to get a cleaner result. One run, one report, the human
-sees all of it. If the main agent dispatches the subagent a second time to get
-a different answer, that is itself a blocks-ship finding.
+Dispatch a separate subagent (Agent tool, **always Opus**, with
+`allowed-tools: ToolSearch Bash Read AskUserQuestion mcp__abacus__get_ticket`)
+to audit the main agent's work. The subagent has not seen the implementation
+work and checks the main agent's claims with fresh eyes. The main agent must
+not modify, intercept, or retry the subagent to get a cleaner result. One run,
+one report, the human sees all of it. If the main agent dispatches the subagent
+a second time to get a different answer, that is itself a blocks-ship finding.
 
 ### Audit prompt template
 
@@ -621,7 +626,9 @@ The subagent reports directly to the human, not to the main agent.
   ticket comment as a known issue.
 - **"Dismiss — finding is incorrect"** — the human determined the auditor
   was wrong. No action needed. Record the dismissal in the ticket comment
-  so there is a trace.
+  with the original finding text verbatim and the human's reason for
+  dismissal. The main agent must not paraphrase or characterize the
+  finding in its own words.
 - **"I'll handle it"** — the human takes responsibility. Stop and report.
 
 ## 9. Ship it
