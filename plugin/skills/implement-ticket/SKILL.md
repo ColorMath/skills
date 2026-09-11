@@ -282,10 +282,10 @@ const RE_REVIEW_SCHEMA = {
         type: 'object',
         properties: {
           summary: { type: 'string' },
-          severity: { type: 'string' },
+          severity: { type: 'string', enum: ['critical', 'important', 'minor'] },
           addressed: { type: 'boolean' },
         },
-        required: ['summary', 'addressed'],
+        required: ['summary', 'severity', 'addressed'],
       },
     },
   },
@@ -329,7 +329,10 @@ for (const step of STEPS) {
   let round = 0
   while (findings.length > 0 && round < 5) {
     round++
-    const fixModel = round >= 4 ? 'opus' : step.model
+    const TIERS = ['haiku', 'sonnet', 'opus']
+    const currentTier = TIERS.indexOf(step.model)
+    const nextTier = Math.min(currentTier + 1, TIERS.length - 1)
+    const fixModel = round >= 4 ? TIERS[nextTier] : step.model
     await agent(
       `Fix these findings: ${JSON.stringify(findings)}. ` +
       `Read ${step.briefPath} for context.`,
@@ -431,14 +434,17 @@ for**, **where the plan held and where it did not**, **the QA plan's results
 including anything unverified**, and any deviation you made and why.
 
 When ship comes back, `add_comment` on the ticket with the outcome — the PR
-link, whether it merged or is held, the deviations, and the full rulings
-list from the workflow result. That comment is how the ticket stops being a plan and
-becomes a record. Leave the ticket's own fields alone: `plan` and `qa_plan`
-are what was intended, and the comment is what happened.
+link, whether it merged or is held, the deviations, the `branchFindings`
+and `cappedFindings` from the workflow result, and any rulings recorded in
+the ledger (`.colormath/sdd/<ticket-key>/progress.md`). Extract the rulings
+from the ledger before deleting the workspace. That comment is how the
+ticket stops being a plan and becomes a record. Leave the ticket's own
+fields alone: `plan` and `qa_plan` are what was intended, and the comment
+is what happened.
 
-Delete the workspace directory (`.colormath/sdd/<ticket-key>/`) — the git
-history is the record now. Other tickets' directories are not yours to
-touch.
+Delete the workspace directory (`.colormath/sdd/<ticket-key>/`) after
+extracting the rulings. The git history is the record now. Other tickets'
+directories are not yours to touch.
 
 ## 8. Record that you ran
 

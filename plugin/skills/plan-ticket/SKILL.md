@@ -2,7 +2,7 @@
 name: plan-ticket
 description: Turn a ticket whose requirements are settled into one somebody could start on Monday — read it, investigate the code it touches at file-and-line level, settle the few implementation forks the requirements left open, then write back a file-anchored implementation plan and an executable QA plan. Use this whenever someone wants a ticket planned, made ready, starred, estimated, or "taken from a description to something I can pick up" — or names a ticket key (CM-00001) and asks how it would be built. Not for establishing what is being asked for (that's /colormath:gather-requirements), not for finding unknown problems in a feature (that's /colormath:qa), and not for implementing it — the planned ticket is the deliverable.
 argument-hint: [ticket key, e.g. CM-00001 — or enough of the title to find it]
-allowed-tools: Agent Bash Read Grep Glob AskUserQuestion mcp__abacus__get_ticket mcp__abacus__record_metric mcp__abacus__update_ticket mcp__abacus__add_comment mcp__abacus__get_project mcp__abacus__move_ticket mcp__abacus__list_projects mcp__abacus__list_tickets mcp__abacus__list_members
+allowed-tools: Agent Bash Read Grep Glob AskUserQuestion mcp__abacus__get_ticket mcp__abacus__record_metric mcp__abacus__update_ticket mcp__abacus__add_comment mcp__abacus__get_project mcp__abacus__move_ticket mcp__abacus__list_projects mcp__abacus__list_tickets
 ---
 
 Plan the ticket named in "$ARGUMENTS" until someone else could pick it up cold
@@ -21,8 +21,8 @@ in a way anybody can catch. A plan is useful in proportion to how specifically
 it can be contradicted.
 
 So the spine is **read → check it's ready to plan → investigate → settle the
-forks → draft → confirm → write.** Anchor every step in a real file, at a real
-line where you can.
+forks → draft → confirm → write → move → record.** Anchor every step in a
+real file, at a real line where you can.
 
 Quote the ticket by its **key** (`CM-00001`) throughout — that's what people
 call it by, never the UUID.
@@ -201,6 +201,8 @@ every step:
 ### Step N: <title>
 
 **Reuse:** extends `path:line` — <what it does and why extending fits>
+  (or: replaces `path:line` — <why replacing is better than extending>)
+  (or: duplicates `path:line` — <why, and note the twin>)
   (or: new — searched [X] and [Y], nothing fits because [reason])
 **Pattern:** follows <existing pattern name> | new because <reason>
 **Files:** `path/to/file.py:100-150`, `path/to/other.py`
