@@ -2,7 +2,7 @@
 name: implement-ticket
 description: Take a planned ticket all the way to a shipped PR — check its plan still matches the code, ask only what genuinely blocks, build it at the layer the plan names, execute its QA plan against the running stack, then hand off to /colormath:ship. Use this when someone says to implement, build, do, or work a ticket that has already been groomed, or names a ticket key and says "go". Not for grooming (that's /colormath:gather-requirements, then /colormath:plan-ticket) and not for a defect report (that's /colormath:bugfix).
 argument-hint: [ticket key, e.g. CM-00012]
-allowed-tools: Bash Read Edit Write Grep Glob Skill AskUserQuestion mcp__abacus__get_ticket mcp__abacus__record_metric mcp__abacus__add_comment mcp__abacus__get_project mcp__abacus__move_ticket mcp__abacus__list_projects mcp__abacus__list_tickets
+allowed-tools: Agent Workflow Bash Read Edit Write Grep Glob Skill AskUserQuestion mcp__abacus__get_ticket mcp__abacus__record_metric mcp__abacus__add_comment mcp__abacus__get_project mcp__abacus__move_ticket mcp__abacus__list_projects mcp__abacus__list_tickets
 ---
 
 Implement the ticket in "$ARGUMENTS", QA it, and ship it.
@@ -135,6 +135,35 @@ Where the plan holds, say so briefly and move on. Where it does not, that is a
 routed around. Silently improving a plan is how a reviewed decision gets
 replaced by an unreviewed one.
 
+Then scan the plan's steps against each other. Step 3's first pass checked
+each step against the code. This pass checks the steps against one another:
+
+- **Do the interfaces match?** Each step states what it consumes and what it
+  produces. Verify that what step N says it produces is what step N+1 says
+  it consumes — the same function names, the same types, the same data
+  shapes. A mismatch here means two subagents will build to different
+  contracts.
+- **Do any steps contradict each other?** Two steps that both create the
+  same file, or that make incompatible assumptions about the same function,
+  will collide when built in sequence.
+- **Does anything the plan mandates contradict the repo's conventions?** A
+  plan step that names a pattern the repo has since replaced, or that puts
+  code in a location the conventions now forbid, will pass review and rot.
+
+Write the results to a progress ledger file at
+`.colormath/sdd/<ticket-key>/progress.md`. Create the directory if it does
+not exist (`mkdir -p`), and ensure `.colormath/` is in the repo's
+`.gitignore` (add it if missing — the workspace is scratch, not source).
+Start the ledger with `# Ledger — ticket: <ticket key>` as its first line. Record the scan
+as a table: one row per pair of adjacent steps that share an interface, and
+one row per step that touches a convention-governed location. "The scan is
+clean" without those rows is not a scan you ran.
+
+Rule on every finding before you proceed. The ticket description and the
+initiative are the authorities. Record each ruling in the ledger as
+`Ruling: <decision> — <why> — <cost if wrong>`. If the scan is clean,
+proceed without comment.
+
 ## 4. Ask only what actually blocks you
 
 By this point there usually is nothing to ask — grooming's whole job was to
@@ -157,30 +186,210 @@ Handing the ticket back is one of the two good outcomes here, and it has a
 project move of its own: put the ticket back in the column step 2 took it out of
 before you stop.
 
-## 5. Build it, at the layer the plan names
+## 5. Build it with a workflow
 
-Branch first — `feat/<ticket-key-slug>` or the repo's own convention — never the
-default branch.
+Branch first — `feat/<ticket-key-slug>` or the repo's own convention — never
+the default branch.
 
-Then implement, in the idiom of the surrounding code: its conventions, its
-layering, its naming, its comment density. Follow the plan's ordering when it
-has one; it usually encodes a dependency.
+Build a workflow script from the plan steps and run it with the Workflow
+tool. The workflow handles the implementation, review, and fix loop for
+each step, with a live progress bar. You do not dispatch subagents yourself.
 
-Three things worth more than speed:
+### Write the step briefs
 
-- **Tests at the layer the change lives at**, not one layer up where they are
-  easier to write. Where the plan or the repo names a coverage or gate
-  expectation, meet it here rather than discovering it in CI.
-- **Deviations get recorded, not hidden.** If implementing shows the plan was
-  wrong — a step that cannot work, a better layer, a case the plan missed —
-  say so in chat as you go, and put it in the PR body and in a ticket comment
-  at the end. The plan stays as the record of what was intended; the comment
-  records what actually happened and why. Never rewrite the plan field to match
-  what you did: that erases the difference between the two, which is the only
-  interesting part.
-- **Scope discipline.** Build the ticket, not the ticket plus the thing next to
-  it that is obviously also wrong. Note the neighbour, finish the ticket. If it
-  belongs to an initiative, the neighbour may literally be the next ticket.
+For each plan step, write a brief file to
+`.colormath/sdd/<ticket-key>/step-<N>-brief.md`. The brief contains:
+
+- The step's full text from the plan, including its Consumes/Produces
+  interfaces.
+- One line on where this step fits ("step 3 of 7, after the migration,
+  before the API route").
+- Global context: what the ticket is for, acceptance criteria, and
+  conventions.
+- The step's Reuse, Pattern, and Files fields from the plan, which tell the
+  implementer what existing code to extend and which conventions to follow.
+- The no-subagents contract: the implementer never dispatches subagents.
+- The scan results from step 3: if the ledger contains rulings that affect
+  this step, include them in the brief so the implementer builds within
+  those decisions.
+
+Each brief is the subagent's requirements. It does not read the whole plan.
+
+### Decide batching and models
+
+Before building the script, decide which steps to batch and which model
+each step gets.
+
+**Batching:** consecutive steps that modify the same file and are small,
+same-shape edits go into one phase. Each batch becomes one implementer
+agent call in the script.
+
+**Model selection per step:**
+
+- **Mechanical** (1–2 files, clear spec): `sonnet`
+- **Integration** (multi-file, pattern matching): `sonnet`
+- **Design** (architecture judgment, broad codebase): `opus`
+- **Reviewers**: `sonnet` for most diffs, `opus` for complex or risky ones
+- **Fix-loop escalation**: one tier above the implementer that got stuck
+- **Branch review**: `opus` (most capable)
+
+### Build and run the workflow script
+
+Build a JavaScript workflow script and pass it to the Workflow tool. The
+script follows this structure:
+
+```javascript
+export const meta = {
+  name: 'implement-<ticket-key>',
+  description: 'Implement <ticket title>',
+  phases: [
+    // one entry per step (or batch), plus review
+    { title: 'Step 1-3: <title>' },
+    { title: 'Review 1-3' },
+    { title: 'Step 4: <title>' },
+    { title: 'Review 4' },
+    // ... one pair per step or batch
+    { title: 'Branch review' },
+  ],
+}
+
+const REVIEW_SCHEMA = {
+  type: 'object',
+  properties: {
+    verdict: { type: 'string', enum: ['pass', 'fail'] },
+    findings: {
+      type: 'array',
+      items: {
+        type: 'object',
+        properties: {
+          summary: { type: 'string' },
+          severity: { type: 'string', enum: ['critical', 'important', 'minor'] },
+          file: { type: 'string' },
+        },
+        required: ['summary', 'severity'],
+      },
+    },
+  },
+  required: ['verdict', 'findings'],
+}
+
+const RE_REVIEW_SCHEMA = {
+  type: 'object',
+  properties: {
+    open: {
+      type: 'array',
+      items: {
+        type: 'object',
+        properties: {
+          summary: { type: 'string' },
+          severity: { type: 'string', enum: ['critical', 'important', 'minor'] },
+          addressed: { type: 'boolean' },
+        },
+        required: ['summary', 'severity', 'addressed'],
+      },
+    },
+  },
+  required: ['open'],
+}
+
+// Each step: implement → review → fix loop if needed
+const STEPS = [
+  // generated from plan steps and briefs
+  {
+    phase: 'Step 1-3: <title>',
+    reviewPhase: 'Review 1-3',
+    briefPath: '.colormath/sdd/<key>/step-1-2-3-brief.md',
+    model: 'sonnet',
+  },
+  // ...
+]
+
+const cappedFindings = []
+
+for (const step of STEPS) {
+  phase(step.phase)
+  await agent(
+    `Read ${step.briefPath} — it is your requirements. Implement it, ` +
+    `run the tests, commit. Do not dispatch subagents. If the brief is ` +
+    `ambiguous, decide based on the ticket description and repo ` +
+    `conventions, and note your decision in the commit message.`,
+    { phase: step.phase, model: step.model }
+  )
+
+  phase(step.reviewPhase)
+  const review = await agent(
+    `Review the most recent commits against ${step.briefPath}. ` +
+    `Check spec compliance and code quality.`,
+    { phase: step.reviewPhase, model: 'sonnet', schema: REVIEW_SCHEMA }
+  )
+
+  // fix loop: up to 5 rounds
+  let findings = (review?.findings || [])
+    .filter(f => f.severity !== 'minor')
+  let round = 0
+  while (findings.length > 0 && round < 5) {
+    round++
+    const TIERS = ['haiku', 'sonnet', 'opus']
+    const currentTier = TIERS.indexOf(step.model)
+    const nextTier = Math.min(currentTier + 1, TIERS.length - 1)
+    const fixModel = round >= 4 ? TIERS[nextTier] : step.model
+    await agent(
+      `Fix these findings: ${JSON.stringify(findings)}. ` +
+      `Read ${step.briefPath} for context.`,
+      { phase: step.phase, model: fixModel }
+    )
+    const reReview = await agent(
+      `Re-review: are these findings addressed? ${JSON.stringify(findings)}`,
+      { phase: step.reviewPhase, model: 'sonnet', schema: RE_REVIEW_SCHEMA }
+    )
+    findings = (reReview?.open || []).filter(f => !f.addressed)
+  }
+  if (findings.length > 0) {
+    log(`Step capped at 5 rounds with ${findings.length} open findings`)
+    cappedFindings.push(...findings.map(f => ({ step: step.phase, ...f })))
+  }
+}
+
+// Branch review
+phase('Branch review')
+const branchReview = await agent(
+  'Review the full branch diff for cross-step issues, duplicated ' +
+  'logic, and convention violations.',
+  { phase: 'Branch review', model: 'opus', schema: REVIEW_SCHEMA }
+)
+if (branchReview?.findings?.length) {
+  await agent(
+    `Fix all branch-review findings: ${JSON.stringify(branchReview.findings)}`,
+    { phase: 'Branch review', model: 'opus' }
+  )
+}
+return {
+  branchFindings: branchReview?.findings || [],
+  cappedFindings,
+}
+```
+
+**This is a template.** Generate the actual script from the plan steps,
+briefs, batching decisions, and model assignments. The structure stays the
+same: implement → review → fix loop per step, then branch review.
+
+Pass the script to the Workflow tool via the `script` parameter. Do not
+write it to a file first. The Workflow tool returns when all phases are
+complete.
+
+### After the workflow
+
+The workflow returns `{ branchFindings, cappedFindings }`.
+`branchFindings` are issues from the whole-branch review.
+`cappedFindings` are per-step issues that hit the 5-round fix cap.
+Both lists go into the ticket comment and PR body at the end. If
+either list is non-empty, report each finding to the user before
+moving to QA.
+
+If the workflow was interrupted (machine sleep, context limit, or user
+interruption), re-invoke the Workflow tool with resumeFromRunId set to the
+prior run's ID. Completed agent() calls with unchanged prompts return
+cached results. Only the interrupted step and everything after it re-runs.
 
 ## 6. Execute the QA plan against the running stack
 
@@ -196,8 +405,8 @@ admin account proves nothing about access control.
 Work every item and record what you observed: the request and response, the row
 you read back, the screen state. Drive UI items through a browser if one is
 reachable; if none is, mark them `⚠️` unverified and say so plainly rather than
-inferring them from the code you just wrote — which is the least trustworthy
-possible source for whether the UI works.
+inferring them from the code the subagents just wrote — which is the least
+trustworthy possible source for whether the UI works.
 
 Anything that fails is yours to fix now, then re-run the item. A QA plan item
 that fails and gets shipped anyway is worse than one nobody ran, because the
@@ -225,10 +434,17 @@ for**, **where the plan held and where it did not**, **the QA plan's results
 including anything unverified**, and any deviation you made and why.
 
 When ship comes back, `add_comment` on the ticket with the outcome — the PR
-link, whether it merged or is held, and the deviations. That comment is how the
-ticket stops being a plan and becomes a record. Leave the ticket's own fields
-alone: `plan` and `qa_plan` are what was intended, and the comment is what
-happened.
+link, whether it merged or is held, the deviations, the `branchFindings`
+and `cappedFindings` from the workflow result, and any rulings recorded in
+the ledger (`.colormath/sdd/<ticket-key>/progress.md`). Extract the rulings
+from the ledger before deleting the workspace. That comment is how the
+ticket stops being a plan and becomes a record. Leave the ticket's own
+fields alone: `plan` and `qa_plan` are what was intended, and the comment
+is what happened.
+
+Delete the workspace directory (`.colormath/sdd/<ticket-key>/`) after
+extracting the rulings. The git history is the record now. Other tickets'
+directories are not yours to touch.
 
 ## 8. Record that you ran
 
@@ -263,7 +479,7 @@ take is worse than a missing row.
 ## Rules
 
 - **Execute the plan; don't rewrite it.** No re-grooming, no "improving" the
-  plan silently. Where it is wrong, say so and decide with the user.
+  plan silently. Where it is wrong, rule on it and ledger the ruling.
 - **A ticket with no plan goes back to `/colormath:plan-ticket`.** Writing the
   plan and implementing it in the same breath means nobody ever reviewed the
   plan.
@@ -278,3 +494,8 @@ take is worse than a missing row.
   what the change requires, don't create tickets. Note them and move on.
 - **Record what actually happened** in a ticket comment at the end,
   deviations included, and leave the planned fields as the record of intent.
+- **The workflow builds the code; you do not.** Do not write code outside
+  the workflow. Do not dispatch implementation subagents yourself. The
+  Workflow tool handles sequencing, progress, and resume.
+- **Open findings from the workflow go into the ticket comment and PR body.**
+  Do not silently discard them.

@@ -2,7 +2,7 @@
 name: plan-ticket
 description: Turn a ticket whose requirements are settled into one somebody could start on Monday — read it, investigate the code it touches at file-and-line level, settle the few implementation forks the requirements left open, then write back a file-anchored implementation plan and an executable QA plan. Use this whenever someone wants a ticket planned, made ready, starred, estimated, or "taken from a description to something I can pick up" — or names a ticket key (CM-00001) and asks how it would be built. Not for establishing what is being asked for (that's /colormath:gather-requirements), not for finding unknown problems in a feature (that's /colormath:qa), and not for implementing it — the planned ticket is the deliverable.
 argument-hint: [ticket key, e.g. CM-00001 — or enough of the title to find it]
-allowed-tools: Bash Read Grep Glob AskUserQuestion mcp__abacus__get_ticket mcp__abacus__record_metric mcp__abacus__update_ticket mcp__abacus__add_comment mcp__abacus__get_project mcp__abacus__move_ticket mcp__abacus__list_projects mcp__abacus__list_tickets mcp__abacus__list_members
+allowed-tools: Agent Bash Read Grep Glob AskUserQuestion mcp__abacus__get_ticket mcp__abacus__record_metric mcp__abacus__update_ticket mcp__abacus__add_comment mcp__abacus__get_project mcp__abacus__move_ticket mcp__abacus__list_projects mcp__abacus__list_tickets
 ---
 
 Plan the ticket named in "$ARGUMENTS" until someone else could pick it up cold
@@ -21,8 +21,8 @@ in a way anybody can catch. A plan is useful in proportion to how specifically
 it can be contradicted.
 
 So the spine is **read → check it's ready to plan → investigate → settle the
-forks → draft → confirm → write.** Anchor every step in a real file, at a real
-line where you can.
+forks → draft → confirm → write → move → record.** Anchor every step in a
+real file, at a real line where you can.
 
 Quote the ticket by its **key** (`CM-00001`) throughout — that's what people
 call it by, never the UUID.
@@ -85,12 +85,21 @@ jobs, migrations and config. You are answering, for yourself:
   convenience — a fix in a route that belonged in a service passes review and
   rots.
 - **What else reaches this code.** Every other caller of the function you are
-  about to change is regression surface, and step 6 is where they get checked.
+  about to change is regression surface, and the QA plan is where they get checked.
 - **What the existing tests already cover**, so the QA plan doesn't duplicate
   the suite, and so you can see what the suite is blind to.
 - **What has moved since the description was written.** Files get renamed,
   adjacent changes land, assumptions expire. A description six weeks old is
   evidence, not ground truth.
+- **What already exists that does something close to what this ticket needs.**
+  Launch subagents to search the codebase by domain concept (not just
+  filename) for: functions that solve a similar problem, patterns that could
+  be extended to cover this case, and shared abstractions in the repo's
+  conventional locations. Each subagent reports what it found, where it
+  lives (`path:line`), and how close it is to what the ticket asks for. These
+  findings feed step 3 (as forks to settle) and step 4 (as written decisions
+  in the plan). A search that finds nothing is still a finding worth
+  recording.
 
 Then hunt specifically for **what the diff won't contain**. Work whose code
 change looks like a one-line edit is a signal to keep digging: a migration that
@@ -102,6 +111,29 @@ ticket up discovers it at the worst moment.
 
 Distinguish, out loud and in the write-up, **what you verified** from **what
 you inferred**.
+
+**Show the reuse findings before moving on.** Present them in this format:
+
+```
+## Reuse findings
+
+- `services/page_service.py:208` — get_page_for_career() looks up by SOC
+  code. Recommend: **extend** (add the new lookup this ticket needs)
+- `scripts/lib/seed_pages.py:102` — make_page_step() seeds org pages.
+  Recommend: **extend** (generalize to all page types)
+- No existing abstraction for standalone page seeding.
+  Recommend: **new** (searched seed_pages, page_service, seed_demo)
+```
+
+(This is an example. Use your repo's actual paths and function names.)
+
+Each item names the code (`path:line`), what it does, and a recommendation
+(extend, replace, duplicate, or new with what you searched). If the search
+found nothing relevant, say so. Wait for a go-ahead before proceeding to
+step 3.
+
+This is the first of three checkpoints. The user approves the reuse
+direction here, the step shape in step 4a, and the full plan in step 6.
 
 ## 3. Settle the forks — and only the forks
 
@@ -127,6 +159,26 @@ is genuinely open, skip this step and say so.
 
 ## 4. Write an implementation plan someone could follow
 
+### 4a. Show the step shape
+
+Before writing full detail, show the user a table in this format:
+
+```
+| Step | Title                    | Files                        | Consumes        | Produces           |
+|------|--------------------------|------------------------------|-----------------|--------------------|
+| 1    | Extend PageSpec          | scripts/lib/seed_pages.py    | —               | PageSpec (extended) |
+| 2    | Generalize make_page_step| scripts/lib/seed_pages.py    | PageSpec        | ExtraStep           |
+| 3    | Add career page specs    | scripts/lib/career_pages.py  | PageSpec        | CAREER_PAGE_SPECS   |
+```
+
+One row per step. No detail beyond the table. The user approves the
+decomposition, the ordering, and the interfaces before you invest in the
+detail. If the shape is wrong, the detail is wasted.
+
+Wait for a go-ahead.
+
+### 4b. Write the full plan
+
 Ordered steps, each naming **real paths** — `services/billing.py:212`, not
 "the billing service". A step that names no file is a wish, and the reader
 can't tell a wrong plan from a vague one.
@@ -141,6 +193,56 @@ when deploy order matters. Include **what explicitly does not need to change**
 — it bounds the diff against scope creep, and it's the visible proof that you
 actually looked.
 
+Each step in the plan is a design decision. It reflects what a staff-level
+engineer would choose, and it shows the reasoning. Use this template for
+every step:
+
+```
+### Step N: <title>
+
+**Reuse:** extends `path:line` — <what it does and why extending fits>
+  (or: replaces `path:line` — <why replacing is better than extending>)
+  (or: duplicates `path:line` — <why, and note the twin>)
+  (or: new — searched [X] and [Y], nothing fits because [reason])
+**Pattern:** follows <existing pattern name> | new because <reason>
+**Files:** `path/to/file.py:100-150`, `path/to/other.py`
+**Consumes:** <exact function names, types, data shapes from earlier steps>
+**Produces:** <exact function names, return types for later steps>
+
+<body: what changes, at which layer, and why>
+```
+
+The fields:
+
+- **Reuse:** names what existing code this step extends. The reuse findings
+  from step 2 are the source. When proposing new code, say what you
+  searched and why nothing fits.
+- **Pattern:** names which repo convention this step follows, or why none
+  fits. Naming, layering, file placement: the surrounding code is the spec.
+- **Files:** real paths with line ranges.
+- **Consumes/Produces:** exact interfaces so a subagent can pick up this
+  step cold.
+
+Three principles for the body:
+
+- **Prefer the boring solution.** Fewest moving parts, least new surface
+  area. Between two designs that solve the problem, the simpler one wins.
+- **Size the abstraction to its callers.** Extract shared logic when the
+  same concept appears a third time, with callers that exist today. A
+  wrong abstraction is more expensive than duplication.
+- **Delete when you can.** A plan that removes code is often stronger than
+  one that adds it. If the change makes something obsolete, say so.
+
+The body does not repeat what the Reuse and Pattern fields already state.
+
+A step that a subagent could pick up cold and build without reading the
+rest of the plan is the right size.
+
+**No placeholders.** Every step contains what the builder needs. These are
+plan failures: "TBD", "TODO", "add appropriate error handling", "add
+validation", "write tests for the above", "similar to step N". A step that
+describes what to do without saying how is a placeholder with more words.
+
 Close with **open questions** — everything unresolved, stated plainly rather
 than papered over. A plan that admits two unknowns is more useful than one that
 silently guesses at them. Anything you assumed in step 3 goes here too, as an
@@ -153,32 +255,66 @@ and belongs in your report as well as in the plan.
 
 ## 5. Write a QA plan that someone can actually execute
 
-This is the section most tickets never get, and the reason defects ship. The
-test is mechanical: **could a person execute each item without asking you what
-you meant?** Each needs a surface, an identity, an input, and an expected
-observable. "Verify it works" fails that test.
+This is the section most tickets never get, and the reason defects ship.
+Write it as a senior QA engineer who has seen production bugs and knows
+where they hide. The test for every item is mechanical: **could a person
+execute it without asking you what you meant?** Each needs a surface, an
+identity, an input, and an expected observable. "Verify it works" fails
+that test.
 
-Work these dimensions and drop the ones that don't apply, rather than padding:
+Start from the implementation plan's steps. For each step, ask: **what
+would a hostile user, a concurrent request, or stale data do to this
+change?** The happy path is the least interesting part of a QA plan.
 
-- **The happy path**, at the privilege tier that actually matters.
-- **Authorization and tenancy** — the wrong role, the neighboring tenant, the
-  logged-out visitor. One admin account proves nothing about access control.
-- **The failure and edge cases this change introduces** — bad input, absent
-  optional data, the boundary values, the second concurrent attempt.
+Work these dimensions and drop the ones that don't apply, rather than
+padding:
+
+- **The happy path**, at the privilege tier that actually matters. One
+  item, with the exact request/response or UI action and expected state.
+- **Authorization and tenancy** — the wrong role, the neighboring tenant,
+  the logged-out visitor. One admin account proves nothing about access
+  control. Name the identity, the action, and the expected refusal.
+- **Edge cases the implementation introduces.** For each step, name the
+  boundary values, the empty/null/missing cases, and the second concurrent
+  attempt. A QA plan that tests only the designed path ships the defects
+  that live one step outside it.
+- **State transitions and ordering.** What happens when steps arrive out
+  of order, when a prerequisite fails partway, or when the same operation
+  runs twice? Idempotency is not assumed; it is verified.
 - **Regression surface** — what *else* reaches this code. Step 2 found the
-  other callers; this is where they get checked.
-- **Data written under the old behavior.** Existing rows rarely match what the
-  new code assumes, and local seed data is pristine and therefore hides it.
+  other callers; this is where they get checked. Name the caller, the
+  input it sends, and the expected output after this change.
+- **Data written under the old behavior.** Existing rows rarely match what
+  the new code assumes, and local seed data is pristine and therefore
+  hides it. Name a row that existed before this change and what should
+  happen to it.
+- **Design cohesion**, when there is UI: review the affected views as a
+  principal designer would. Name each page and viewport to screenshot.
+  Check visual consistency with the surrounding UI: spacing, color tokens,
+  typography, component reuse, and responsive behavior. A new element that
+  does not match the design language of the page it sits on is a defect.
 - **Accessibility**, when there's UI: keyboard reachability, labels and
   semantics, announcement of state changes, contrast.
-- **Post-deploy verification**, when the change only manifests in a deployed
-  environment — name the environment, the check, and who can run it.
+- **Post-deploy verification**, when the change only manifests in a
+  deployed environment — name the environment, the check, and who can
+  run it.
 
 Then separate **what automated tests will cover** from **what needs hands**,
 and name the repo's gates the change implicates — diff coverage on new logic,
 a11y on templates, a dependency or secrets scan on new config. A QA plan that
 duplicates the test suite wastes the tester; one that assumes the suite covers
 the interesting case wastes the release.
+
+For automated tests, name the test file, the test function, and what it
+asserts. For manual verification items, name the exact command or browser
+action, the identity to use, and the expected observable.
+
+Use this format for each QA item:
+
+```
+- **<ID>: <title>** — Surface: <where>. Identity: <who>. Action: <what>.
+  Expected: <observable result>.
+```
 
 Write it knowing **`/colormath:ship` will execute it verbatim** against a
 running stack, and will not edit it. An item that cannot be driven from a
