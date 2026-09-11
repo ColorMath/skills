@@ -206,7 +206,12 @@ For each plan step, write a brief file to
   before the API route").
 - Global context: what the ticket is for, acceptance criteria, and
   conventions.
+- The step's Reuse, Pattern, and Files fields from the plan, which tell the
+  implementer what existing code to extend and which conventions to follow.
 - The no-subagents contract: the implementer never dispatches subagents.
+- The scan results from step 3: if the ledger contains rulings that affect
+  this step, include them in the brief so the implementer builds within
+  those decisions.
 
 Each brief is the subagent's requirements. It does not read the whole plan.
 
@@ -305,7 +310,9 @@ for (const step of STEPS) {
   phase(step.phase)
   await agent(
     `Read ${step.briefPath} — it is your requirements. Implement it, ` +
-    `run the tests, commit. Do not dispatch subagents.`,
+    `run the tests, commit. Do not dispatch subagents. If the brief is ` +
+    `ambiguous, decide based on the ticket description and repo ` +
+    `conventions, and note your decision in the commit message.`,
     { phase: step.phase, model: step.model }
   )
 
@@ -375,6 +382,11 @@ The workflow returns `{ branchFindings, cappedFindings }`.
 Both lists go into the ticket comment and PR body at the end. If
 either list is non-empty, report each finding to the user before
 moving to QA.
+
+If the workflow was interrupted (machine sleep, context limit, or user
+interruption), re-invoke the Workflow tool with resumeFromRunId set to the
+prior run's ID. Completed agent() calls with unchanged prompts return
+cached results. Only the interrupted step and everything after it re-runs.
 
 ## 6. Execute the QA plan against the running stack
 

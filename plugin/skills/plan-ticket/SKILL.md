@@ -125,6 +125,8 @@ you inferred**.
   Recommend: **new** (searched seed_pages, page_service, seed_demo)
 ```
 
+(This is an example. Use your repo's actual paths and function names.)
+
 Each item names the code (`path:line`), what it does, and a recommendation
 (extend, replace, duplicate, or new with what you searched). If the search
 found nothing relevant, say so. Wait for a go-ahead before proceeding to
@@ -229,6 +231,8 @@ Three principles for the body:
 - **Delete when you can.** A plan that removes code is often stronger than
   one that adds it. If the change makes something obsolete, say so.
 
+The body does not repeat what the Reuse and Pattern fields already state.
+
 A step that a subagent could pick up cold and build without reading the
 rest of the plan is the right size.
 
@@ -302,6 +306,13 @@ the interesting case wastes the release.
 For automated tests, name the test file, the test function, and what it
 asserts. For manual verification items, name the exact command or browser
 action, the identity to use, and the expected observable.
+
+Use this format for each QA item:
+
+```
+- **<ID>: <title>** — Surface: <where>. Identity: <who>. Action: <what>.
+  Expected: <observable result>.
+```
 
 Write it knowing **`/colormath:ship` will execute it verbatim** against a
 running stack, and will not edit it. An item that cannot be driven from a
