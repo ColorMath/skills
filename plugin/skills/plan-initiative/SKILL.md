@@ -2,7 +2,7 @@
 name: plan-initiative
 description: Plan every ticket in an initiative, one at a time and in build order, by running plan-ticket over each of them with the initiative's context injected — where this ticket sits in the sequence, what comes before and after it, and every decision already settled. Use this once an initiative has started building and its tickets exist, when someone wants the whole initiative planned, made ready, starred, or "taken from a list of titles to something the team can pick up". Finishes only when every plannable ticket in the initiative carries both an implementation plan and a QA plan.
 argument-hint: [initiative key, e.g. CM-00007]
-allowed-tools: Bash Read Grep Glob Skill AskUserQuestion mcp__abacus__get_ticket mcp__abacus__record_metric mcp__abacus__add_comment mcp__abacus__list_projects mcp__abacus__list_tickets
+allowed-tools: Agent Bash Read Grep Glob Skill AskUserQuestion mcp__abacus__get_ticket mcp__abacus__record_metric mcp__abacus__add_comment mcp__abacus__list_projects mcp__abacus__list_tickets
 ---
 
 Plan every ticket under the initiative in "$ARGUMENTS", one at a time, until
@@ -46,7 +46,7 @@ thing that settles arguments — the decisions in it are **not up for
 re-litigation** by the tickets underneath, and the injected context will say
 so.
 
-## 2. Establish the order, and show the run before you start
+## 2. Establish the order, search for reuse, and show the run before you start
 
 Sort the children by their position — that is build order, carried down from
 the feature list the initiative argued about. Plan in that order. It matters
@@ -73,12 +73,55 @@ Those need `/colormath:gather-requirements` first, which is a separate,
 question-heavy session; flag them in the run you show below rather than
 discovering it seven tickets in.
 
-Now show the user the run before spending their attention on it: the
-initiative, the ordered list, which are already planned, which are skippable,
-and how many will therefore need grooming — **and that each one may ask them
-questions**. A seven-ticket initiative is a long session, and someone who knows
-that up front can say "just the first three today". Get a go-ahead. If they
-want a subset, plan that subset in order and report the rest as untouched.
+### Initiative-level reuse search
+
+Before the first ticket, search the codebase for patterns that span the
+initiative. Launch subagents to find: functions, services, and abstractions
+that already cover the domain the initiative touches. Search by domain
+concept, not just filename. The initiative-level search is broader than what
+each ticket will do on its own: look for patterns that cross ticket
+boundaries (shared services, common data shapes, existing abstractions that
+several tickets could extend). Each subagent reports what it found, where it
+lives (`path:line`), and how close it is to what the initiative asks for.
+
+Present the findings in this format:
+
+```
+## Reuse ledger
+
+- `services/page_service.py:208` — get_page_for_career() looks up by SOC
+  code. Recommend: **extend** (add the new lookup this ticket needs)
+- `scripts/lib/seed_pages.py:102` — make_page_step() seeds org pages.
+  Recommend: **extend** (generalize to all page types)
+- No existing abstraction for standalone page seeding.
+  Recommend: **new** (searched seed_pages, page_service, seed_demo)
+```
+
+Each entry names the code (`path:line`), what it does, and a recommendation
+(extend, replace, duplicate, or new with what you searched). If the search
+found nothing relevant, say so explicitly — an empty ledger is still shown
+at the checkpoint.
+
+These findings become the **reuse ledger** — a running list that grows as
+each ticket adds its own findings. The ledger starts here and carries
+forward through every ticket in step 3.
+
+### Show the checkpoint
+
+Show the user the run before spending their attention on it:
+
+- The initiative: key, title, and a tight summary of what it decides.
+- The reuse ledger: initiative-level findings, in the format
+  `plan-ticket` uses (`path:line`, what it does, recommendation).
+- The ordered list of children: which are already planned, which are
+  skippable, which need `/colormath:gather-requirements` first, and how
+  many will need planning.
+- That each ticket may ask them questions (up to three checkpoints per
+  ticket: reuse findings, step shape, full plan).
+
+A seven-ticket initiative is a long session, and someone who knows that up
+front can say "just the first three today". Get a go-ahead. If they want a
+subset, plan that subset in order and report the rest as untouched.
 
 ## 3. Plan each ticket, with its place in the sequence
 
@@ -99,29 +142,54 @@ cannot get on its own. Keep the context compact and factual:
 - **The feature definition it came from**, if you can match it — the
   initiative's own words for this piece are usually sharper than the ticket
   title cut from them.
+- **The reuse ledger so far**: every reuse finding from the initiative-level
+  search (step 2) and from all earlier tickets. Include the `path:line`, what
+  it does, and whether an earlier plan already decided to extend, replace, or
+  duplicate it. This is what stops ticket 5 from writing a new helper that
+  ticket 2 already built, and it is only available because you are carrying it
+  forward.
 
 Then let `plan-ticket` do its job. Do not pre-empt it: no drafting the plan
 yourself and asking it to rubber-stamp, no forbidding it from asking the few
 questions it does ask. Its code pass is the point, and the context you injected
 is what keeps its questions from repeating.
 
+`plan-ticket` has **three user checkpoints**: reuse findings, step shape table,
+and the full plan. All three run normally. Do not suppress them — the user
+approves each ticket's direction as it goes.
+
 **If it hands one back as ungathered**, that is a real answer, not a failure to
 work around. Record the ticket as unfinished with that reason, tell the user it
 needs `/colormath:gather-requirements`, and carry on down the list — the rest
 of the initiative does not have to wait for it.
 
-**Carry the answers forward.** When it finishes, note what was decided —
-especially anything the user answered that will recur, and anything the plan
-committed to that a later ticket must match. That note goes into the next
-ticket's injected context. By ticket five you should be asking the user almost
-nothing they have already told you, and if you are not, you are wasting their
-time and should say so.
+**Carry answers and reuse findings forward.** When it finishes, note two things:
 
-**Verify before moving on.** `get_ticket` the ticket again and confirm it now
-carries both a `plan` and a `qa_plan`. If it does not — the user cut the
-grooming short, or a question went unanswered — record it as unfinished and
-move on rather than looping. Never report a ticket as planned because the
-sub-skill ran; report it planned because the fields are there.
+1. **Decisions** — anything the user answered that will recur, and anything the
+   plan committed to that a later ticket must match.
+2. **Reuse findings** — every entry from the ticket's "Reuse findings" section.
+   Add them to the reuse ledger. If a finding duplicates one already in the
+   ledger, keep the version from the ticket that investigated it more deeply.
+   If a finding contradicts an earlier one (e.g., an earlier ticket said
+   "extend" but this ticket's deeper investigation says "replace"), update the
+   ledger to the newer recommendation and note the change — the later ticket
+   had more context.
+
+Both go into the next ticket's injected context. By ticket five you should be
+asking the user almost nothing they have already told you, and if you are not,
+you are wasting their time and should say so.
+
+**Verify the plan format before moving on.** `get_ticket` the ticket again and
+confirm it now carries both a `plan` and a `qa_plan`. Then check the plan uses
+the **per-step template**: each step has Reuse, Pattern, Files, Consumes, and
+Produces fields. A plan that names files but skips the template fields will not
+be picked up by a subagent cleanly — flag it and say which fields are missing,
+but do not block the run on it.
+
+If the ticket does not carry both fields — the user cut the grooming short, or
+a question went unanswered — record it as unfinished and move on rather than
+looping. Never report a ticket as planned because the sub-skill ran; report it
+planned because the fields are there.
 
 `plan-ticket` also **moves each ticket it plans** into the column that names it,
 so the project fills up column by column as the run proceeds. That is its job, not
@@ -149,11 +217,18 @@ that only became visible from up here:
   Say so; deleting is theirs.
 - **Open questions** that survived, per ticket.
 
+**Comment the status on the initiative.** `add_comment` on the initiative with
+a summary of what this session did: how many tickets were planned, which ones,
+which were skipped and why, and which remain unfinished. If the run planned 3
+of 7, say "planned 3 of 7" and list the remaining four by key. If it planned
+all of them, say so. The next person reading the initiative should know the
+state without opening each child.
+
 Where the run produced a decision worth keeping at initiative level — a
-rejected approach, a split, a sequencing constraint that emerged —
-`add_comment` on the
-**initiative** is its home, so the next person reading it finds the reasoning
-without opening seven tickets.
+rejected approach, a split, a sequencing constraint that emerged — include it
+in the same comment or add a separate one. The initiative's comment thread is
+the home for reasoning that spans tickets, so the next person reading it finds
+the reasoning without opening seven tickets.
 
 ## 5. Record that you ran
 
@@ -194,12 +269,24 @@ take is worse than a missing row.
 - **Don't do plan-ticket's job.** No drafting plans yourself, no suppressing
   its questions, no writing `plan` or `qa_plan` directly — this skill holds no
   `update_ticket` tool for exactly that reason.
-- **Planned means both fields are set.** Verify by reading them back. The
-  sub-skill returning is not evidence.
+- **Planned means both fields are set, in the right format.** Verify by
+  reading them back. The sub-skill returning is not evidence. Each plan step
+  must carry Reuse, Pattern, Files, Consumes, and Produces fields. A plan
+  with placeholders ("TBD", "TODO", "add appropriate error handling", "write
+  tests for the above") is not ready.
+- **Carry the reuse ledger, not just decisions.** Each ticket's reuse findings
+  feed the next ticket's context. A run that carries only decisions lets later
+  tickets rediscover (or miss) what earlier ones already found. Keep the
+  ledger to entries that are still relevant: when a later ticket fully
+  supersedes an earlier finding, replace it rather than appending. By the last
+  ticket the ledger should be a clean picture of the initiative's reuse
+  surface, not a growing log.
 - **Never re-litigate the initiative.** Its description is settled context. If a
   ticket genuinely cannot be planned within it, stop and raise that — it is a
   finding about the initiative, not something to quietly design around.
 - **Don't create, split, re-type or delete tickets**, and **don't start
   building** anything. This skill plans what exists.
 - **Let the user stop.** Between tickets, not mid-grooming. A run they abandoned
-  halfway is a normal outcome: report the half that landed.
+  halfway is a normal outcome: report the half that landed, and **comment the
+  status on the initiative before you stop** — the same comment step 4 asks
+  for, so the next person reading the initiative knows where the run left off.
