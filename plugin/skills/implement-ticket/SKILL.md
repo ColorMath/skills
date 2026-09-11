@@ -245,6 +245,12 @@ The dependency graph is the input. If no steps are independent, parallel
 adds orchestration cost with no concurrency benefit. If all steps are
 independent, sequential wastes the parallelism the graph offers.
 
+**Batching:** before assigning models, batch consecutive steps that modify
+the same file and are small, same-shape edits into one agent call. Each
+batch gets one combined brief and one model assignment. This reduces agent
+count without losing clarity. A batch is still one row in the execution
+plan table and one entry in the dependency graph.
+
 ### 5b. Assign models per step
 
 For each step (and its reviewer if applicable), assign a model tier:
