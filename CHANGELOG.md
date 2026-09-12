@@ -18,6 +18,28 @@ which still covers the gates. This repo's history begins at the extraction.
 
 ## Unreleased
 
+### Added
+
+- **`/colormath:just-do-it`** new skill that takes a small, well-described ticket
+  from Abacus straight to a shipped PR in one session. Skips the separate
+  gather-requirements and plan-ticket steps for work the user has already thought
+  through. Includes a fitness check that refuses initiatives, empty descriptions,
+  and unclear scope. Ships with a 20-case eval suite that covers bug fixes, small
+  features, initiatives (must refuse), empty descriptions, complex tickets, and
+  operational tasks.
+
+### Changed
+
+- **`/colormath:implement-ticket`** QA and audit now close the "unverified" escape
+  hatch. Agents must ToolSearch for the capability before marking any item
+  unverified, and the audit independently verifies each unverified reason. UI items
+  must use browser tools, not curl. A disconnected tool triggers a reconnect prompt
+  instead of an unverified mark.
+
+- **`/colormath:gather-requirements`** now records collaborators and a one-sentence
+  session summary in the metric note field, so the activity feed shows what happened
+  without opening the ticket.
+
 ## v5.3.1 — 2026-09-11
 
 PATCH. **Clearer strategy presentation in implement-ticket step 5c.**
