@@ -334,15 +334,42 @@ concerned — and the counts worth having are the ones nobody wants: a ticket
 gathered four times is a ticket whose requirements will not settle, and the
 fourth run looks exactly like the first from the outside.
 
-`mcp__abacus__record_metric` with the ticket's `id`, `metric: "skill_invoked"`,
-and `subject: "gather-requirements"` — the bare name, never the whole command,
-because the plugin half is configuration and differs per project.
-
 **Once, at the end, and only if you did the work.** Not on every turn and not
 when you begin — a skill that reports each time it thinks makes the count
 meaningless. If you were interrupted, or you stopped at step 1 because the
 ticket was already gathered and handed it to `/colormath:plan-ticket`, record
 nothing: a run that did not happen must not leave a row saying it did.
+
+### Who was here
+
+Before you record anything, ask who collaborated on this session. Call
+`mcp__abacus__list_members` and present the names (minus the person driving the
+terminal, who is already known) as options in a single `AskUserQuestion`:
+*"Did anyone else collaborate on this gathering?"* Include a "Solo session"
+option. If the user names someone, they go in the note below.
+
+### The note
+
+Build a single sentence for the `note` field on `record_metric`. It names:
+
+- **who** — the driver and any collaborator, by first name;
+- **what scope** — "the full initiative", "3 of 7 features", or just the
+  ticket key for a single ticket;
+- **how far** — omit if the work completed normally; say "drafted, not yet
+  confirmed" or similar if the session ended before confirmation.
+
+Examples:
+
+- *"Susie gathered requirements for the full initiative."*
+- *"Susie and Craig gathered requirements: 5 of 7 features rewritten."*
+- *"Susie and Jessica drafted requirements, not yet confirmed."*
+
+### The call
+
+`mcp__abacus__record_metric` with the ticket's `id`, `metric: "skill_invoked"`,
+`subject: "gather-requirements"` — the bare name, never the whole command,
+because the plugin half is configuration and differs per project — and `note`
+set to the sentence above.
 
 **The rows are append-only.** Nobody can edit or delete one, you included, so a
 wrong subject or a double-record is permanent. Get it right rather than
