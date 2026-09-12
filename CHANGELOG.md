@@ -18,6 +18,8 @@ which still covers the gates. This repo's history begins at the extraction.
 
 ## Unreleased
 
+## v5.4.0 — 2026-09-12
+
 ### Added
 
 - **`/colormath:just-do-it`** new skill that takes a small, well-described ticket
