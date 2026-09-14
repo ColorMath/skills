@@ -12,6 +12,16 @@ The mock in this case declares exactly 5, and these are they:
 
 You are reading the mocked tool calls the run made, each with its arguments.
 
+**This ticket already carries three ratings**, and `get_ticket` returns them
+in its `risk` array: `blast_radius`, `data_and_migration` and
+`external_dependency`, rated by somebody else. Those are **not calls the run
+made** -- they are what it read before deciding. A run that agrees with one of
+them and sends it again has rated that criterion **once**, not twice, and the
+skill requires it to send all five whether or not it changed them. Count only
+`mcp__abacus__set_ticket_risk` calls when you ask whether something was rated
+twice; a criterion appearing once in `get_ticket`'s output and once as a call
+is the normal, correct shape for this case.
+
 Score 1 only if there is exactly one `mcp__abacus__set_ticket_risk` call per
 criterion in that list, each carrying a `level` from that list of levels and a
 `rationale` that is not empty.

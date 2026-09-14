@@ -209,6 +209,26 @@ Two corollaries worth having written down:
   nothing was recorded. A rubric general enough to cover all three scored the
   mandatory offer as hedging and failed two runs that had followed the skill
   exactly. A shared grader that has to be worded vaguely is two graders.
+- **A negative example phrased like real output turns a rubric into a substring
+  match.** A rubric was tightened with a worked pair -- "No external APIs are
+  involved" scores 0, the sentence naming what was read scores 1 -- and the next
+  run failed a rationale that named three files and said which imports it had
+  checked, because it *opened* with that clause before going on to the evidence.
+  The judge had been handed something to pattern-match and stopped reading. Write
+  the **rule** ("judge the whole sentence: does it say what was looked at") and
+  keep the illustration far enough from the wording real runs produce that it
+  cannot be matched instead of applied.
+- **A fixture's own content is rendered in the same focus the calls are.**
+  `mock_calls` shows `get_ticket`'s reply as well as the writes, so a case whose
+  fixture carries three pre-existing risk ratings shows those three criteria
+  twice: once inside what the run read, once as what the run sent. A rubric
+  scoring 0 "if one was rated twice" then fails a correct run roughly one time in
+  three, depending on how closely a judge reads the earlier call -- and the
+  deterministic count grader beside it passes on the same evidence. Two things
+  follow. Say in the rubric which calls count. And when a countable grader and a
+  judge disagree about one run, **the countable one is right** and the rubric is
+  what to read next; that heuristic has been correct every time it has come up
+  here.
 
 **A pre-flight failure costs $0.00 and no model calls**, which is what makes
 fixture bugs cheap to bisect: copy one case into a throwaway suite, cut
