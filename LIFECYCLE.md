@@ -136,10 +136,50 @@ first-run trust prompt.
 
 **They are an author's pre-flight, not a gate.** A run costs model calls, so CI
 does not do it; run the suite for the skill you edited before opening the PR,
-and say in the PR what it scored. `--ablation` re-runs each case with the skill
-removed, which is the only evidence that a case is measuring the skill rather
-than the model's defaults — a case that passes without the skill is testing
-nothing.
+and say in the PR what it scored.
+
+**`--ablation` proves nothing about these suites, and the number it prints is
+worth less than it looks.** It re-runs each case with the skill removed, which
+in general is how you tell a case that measures the skill from one that measures
+the model's defaults. But every case here invokes its skill as a **slash
+command** (`prompt: "/colormath:assess-risk CM-00301"`), and removing the skill
+removes the command: the run ends at `turns: 0` with the last message `Unknown
+command: /colormath:assess-risk`. The suite then scores the model's silence.
+`assess-risk` measured a mean Δ of +0.76 that way and it means only that the
+command existed in one arm and not the other. Read the without-arm's `turns`
+before quoting a Δ; if it is 0, there is no comparison in it.
+
+So **the evidence that a case measures the skill has to be made by hand, and it
+is worth more than the ablation would have been**: delete the paragraph of the
+skill a grader is supposed to be sensitive to, re-run that case, and watch the
+specific grader drop — then restore it. A grader that does not move when its
+subject is deleted is not measuring what its name says. Do it per grader rather
+than per case, because a case's score is a mean and a mean can absorb one
+grader going quiet.
+
+Two things that only became clear from doing it. **Give a falsification several
+runs, and read how many judges dissented rather than only how many runs
+failed** - one failing run out of two is a signal and not a result. And
+**expect a grader that watches for an act to be sharp, and one that judges a
+quality to be soft.** `assess-risk` falsified both kinds: deleting the rule
+against writing the description failed `no-write` six votes out of six across
+two runs, because "did this call appear" has one answer; deleting the paragraph
+that sets the rationale bar failed `rationales-are-specific` in one run of five,
+because "is this sentence specific enough" is a matter of degree and three
+judges split on it. Both are worth keeping. Only the first kind can be read as
+a gate, and a soft grader's weakness belongs in the PR rather than in a
+deterministic replacement that passes on any rationale containing a slash.
+
+**`mocks/<server>/_tools.json` is a second allowlist, and it is the stricter
+one.** A skill's `allowed-tools` cannot let a run make a call the mocked server
+does not serve: the first attempt at the falsification above added
+`update_ticket` to the allowlist, instructed the skill to use it, and scored a
+clean pass because the run tried, found no such tool, and said so in its report.
+That is fail-safe, and it also means **a grader asserting that some MCP write
+never happens has never been in a position to see one.** When you want to
+falsify a don't-call-this grader, add the tool to the fixture as well - and when
+you write one, know that its live teeth are the writes the fixture actually
+serves plus the file and shell writes nothing else constrains.
 
 Each case directory holds `case.yaml`, a `graders/` directory, a `mocks/`
 directory and a copy of the suite's `_shared/scaffold.sh`. Three things about
