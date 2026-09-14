@@ -399,6 +399,40 @@ somebody's workflow is worse than leaving it where they put it.
 (step 5 is real QA, not a test run), and `/colormath:ship`'s own prerequisites,
 since it hands off there.
 
+## `/colormath:just-do-it` — build and ship a small ticket in one session
+
+Takes a ticket key (`/colormath:just-do-it CM-00012`) and takes it all the way
+in one session, skipping `gather-requirements` and `plan-ticket` entirely. The
+normal flow is the right weight for most work and too much ceremony for the
+rest: a ticket that says "add a `deleted_at` column to `organizations`" does not
+need three skills to tell it what it already knows.
+
+1. **Check the ticket is genuinely small** — an initiative or a task is out
+   immediately. Otherwise it reads the code the ticket would touch and answers
+   one question: can a single agent, in one session, build this and be confident
+   it is correct? One or two files following an existing pattern is a fit; three
+   modules, a new data model, or a description leaving real design decisions open
+   is not.
+2. **Present the fitness assessment and let the user overrule it** — including
+   when the verdict is "use the normal flow", which names the skill to start
+   with. "Small" is a feeling rather than a measurement, so the judgement is
+   shown rather than acted on silently.
+3. **Claim it on the project** — the same move `implement-ticket` makes, into the
+   column whose `exit_commands` name `implement-ticket`, before the building
+   starts rather than after.
+4. **Build it**, on a branch, in the idiom of the surrounding code.
+5. **QA it**, then **ship** through `/colormath:ship` for PR, gates, review and
+   the merge decision.
+
+A thin description is fine here, which is the whole point — the thinking
+happened in the user's head, and this skill trusts that. What it does not do is
+pretend afterwards: a ticket that turns out to be bigger than it looked is
+handed back at step 1, before a branch exists, rather than quietly becoming an
+unplanned three-module change.
+
+**Prerequisites:** the **Abacus MCP server**, a checkout with the stack
+runnable, and `/colormath:ship`'s own prerequisites, since it hands off there.
+
 ## Adding a skill
 
 One directory per skill: `skills/<name>/SKILL.md` with frontmatter
