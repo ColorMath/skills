@@ -60,6 +60,13 @@ Re-rating a criterion overwrites it, and the old text survives only in the
 audit trail — so a rewrite that loses somebody's reasoning is a real loss, not
 a tidy-up.
 
+**Revising still means every criterion.** Agreeing with a rating is not the
+same as leaving it alone: a criterion you did not send is one nobody has
+looked at since whoever rated it last, and your report will say you assessed
+the ticket. So send all of them, and where you agree, say so in the rationale
+and say what you checked that made you agree. "Keep what is still true" is
+about the reasoning, not about the call.
+
 **If `mcp__abacus__set_ticket_risk` is not available to you, stop.** Say the
 Abacus this project is connected to does not offer risk ratings — it is an
 older deployment — and that the assessment cannot be recorded. **Do not fall
@@ -140,6 +147,16 @@ migration, the route. **A rationale is useful in proportion to how specifically
 it can be wrong** — a sentence nobody can check is a sentence nobody has any
 reason to believe, and the rubric exists precisely because a bare level is that
 sentence with the words taken out.
+
+**A criterion that does not bite here is still a finding, and it is the one
+most likely to come out empty.** "No external APIs are involved" and "no
+migration is planned" are assertions: nothing in them can be checked, and
+they would read identically on half the tickets in the project. Say what you
+looked at instead — the directory you listed, the thing you grepped for and
+did not find, the file the plan names that turned out not to exist. "Nothing
+under `alembic/versions/` is touched; the only revision there is the initial
+schema" is a `low` somebody can go and disprove. An absence you searched for
+is evidence; an absence you assumed is a shrug.
 
 Keep the hard line between **what you verified** and **what you inferred**, and
 put the inference in the rationale as an inference. "The plan says a migration;

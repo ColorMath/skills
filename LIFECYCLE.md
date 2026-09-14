@@ -160,6 +160,56 @@ mocks are easy to get wrong and expensive to discover:
   duplicated rather than referenced because the harness copies one script per
   case; `diff` them when you touch it.
 
+And one thing about **graders** that is worse than any of them, because it
+costs a full suite run rather than a pre-flight:
+
+> **A grader reads one thing, and by default that thing is the agent's closing
+> message.** `focus:` on an `llm` grader and `target:` on a `regex` one both
+> default to `last_message`. The other values are `trace` (every tool call the
+> run made, as JSON lines), `files` (the paths the run *created*, never their
+> contents and never a file it merely edited) and `mock_calls` (each mocked
+> call with its arguments and its reply).
+
+So a rubric that says "score 1 only if the agent called `set_ticket_risk` once
+per criterion" and leaves the focus alone is asking a judge to rule on evidence
+it was never shown, and it votes on the agent's prose instead. That is not a
+grader that is merely weak — it is one whose result is noise, and noise reads
+exactly like a skill regression. It cost this suite a $2.00 red run in which
+every case had behaved correctly. **Any grader that reasons about what the run
+did takes `trace` or `mock_calls`; `last_message` is for grading the report.**
+
+Two corollaries worth having written down:
+
+- **Prefer a deterministic grader wherever the question is countable.** `type:
+  tool_used` with `tool`, `min` and `max` answers "exactly five calls" and
+  "never called `add_comment`" without a judge at all. The name must be the
+  **full** tool name as the trace records it — `mcp__abacus__set_ticket_risk`,
+  not `set_ticket_risk`. For a must-not-call check, set `min: 0`, `max: 0` and
+  `arm: both`: omitting `min` leaves it at 1, and omitting `arm` on `tool:
+  Skill` makes the grader display-only under ablation.
+- **A rubric that grades a refusal must let a run that did nothing pass.** An
+  `llm` grader worded as "score 1 if the only things it wrote were ratings"
+  gives a correct refusal — which wrote nothing at all — no way to score, and
+  the judge resolves the gap against you.
+- **A mock's reply is a stand-in, and a rubric must say so.** `mock_calls`
+  renders each call as an `input` and an `output`, and the `output` is whatever
+  fixed text the fixture holds — the same for every call, whatever was sent. A
+  fixture that looks like a receipt (`"criterion": "blast_radius", "level":
+  "medium"`) therefore contradicts its own input on four calls out of five, and
+  a judge asked "was each criterion rated exactly once" reads the contradiction
+  as the failure it was told to look for. Two halves to the fix, and both are
+  needed: make the reply an acknowledgement that plainly echoes nothing, and
+  tell the rubric to rule on the `input`. This cost a red run in which every
+  case had behaved correctly, and it failed only three cases out of five — with
+  a byte-identical fixture — because which half a judge reads is luck.
+- **One rubric per behaviour, even when three cases look alike.** Three refusal
+  cases shared one `declines.md`, and the skill asks something different of
+  each: the initiative case must decline *and offer to assess the children*,
+  the task case must decline and stop, the missing-tool case must say why
+  nothing was recorded. A rubric general enough to cover all three scored the
+  mandatory offer as hedging and failed two runs that had followed the skill
+  exactly. A shared grader that has to be worded vaguely is two graders.
+
 **A pre-flight failure costs $0.00 and no model calls**, which is what makes
 fixture bugs cheap to bisect: copy one case into a throwaway suite, cut
 `max_turns` to 1, and change one thing at a time until the pre-flight passes.

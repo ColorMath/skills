@@ -1,9 +1,6 @@
 ---
 ---
 {
-  "ticket_id": "aaaaaaaa-bbbb-cccc-dddd-000000000701",
-  "criterion": "blast_radius",
-  "level": "medium",
-  "rationale": "recorded",
-  "risk": []
+  "status": "recorded",
+  "note": "A fixed mock acknowledgement. It is the same for every call and does not echo the arguments of the one it is answering."
 }
