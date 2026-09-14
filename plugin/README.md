@@ -357,6 +357,63 @@ building.
 `plan-ticket` call does a real code pass), and an initiative that has already
 started building. Nothing else.
 
+## `/colormath:assess-risk` — rate a ticket against the engineering-risk rubric
+
+Takes a ticket key (`/colormath:assess-risk CM-00012`) and answers the one
+question a groomed ticket does not: **how badly can this go wrong?** A ticket
+already says what it is, where it is, what it is for and what somebody intends
+to do about it. Two features with identical plans and identical QA plans are
+not identically safe to start, and the moment that bites is the one where a
+ticket is sitting in a column waiting for somebody to choose it.
+
+1. **Read the ticket and check the altitude** — a **feature** or a **bug**
+   proceeds. An **initiative** is not implemented directly, so rating the
+   container rates nothing; it lists the children and offers to assess them
+   instead. A **task** is work that isn't code, and blast radius is a question
+   about a diff. Ratings the ticket already carries mean this is a revision
+   rather than an authoring, and the existing rationales are read as evidence of
+   what somebody already went and looked at.
+2. **Read the rubric off the tool, never from memory** — the criteria and the
+   levels are declared in the tracker's code and generated into
+   `set_ticket_risk`'s own schema, so the `enum` is the authoritative list. That
+   is the whole bargain: a criterion added or retired in the tracker reaches this
+   skill on its next call with no edit here. Rate every criterion the tool
+   offers — if it has six, write six.
+3. **Go and look, once per criterion** — this is where the time goes, and it is
+   what separates a rating from a guess. Each criterion is a question about the
+   code, answered by opening the code: count the callers rather than estimating
+   the blast radius, open the migration the plan names, name the permission check
+   the change lands beside.
+4. **Write one rating per criterion** — one call each, no batch, so a run that
+   dies halfway has recorded what it had actually decided. **High always means
+   more risk**, including for the criterion whose English name reads like a
+   virtue: an easily reversed change is *low* risk.
+5. **Report what was rated and where it is least sure** — an assessment that
+   presents five equally confident sentences is hiding the one that matters.
+
+The bar every rationale is held to is that **it is useful in proportion to how
+specifically it can be wrong**. "This touches the database, so there is some
+migration risk" names no file, no caller and no table; it would read identically
+on forty other tickets, and nobody can contradict it, which is the same as
+nobody being able to trust it.
+
+Three things it deliberately will not do. It **never moves the ticket** — no
+column names this skill, and a ticket that changed lane because somebody
+assessed it has been moved by the assessment, which is the opposite of advisory.
+It **never writes `description`, `plan` or `qa_plan`**; it holds no
+`update_ticket` tool at all, which is where that is enforced rather than merely
+asked for, and a plan it thinks is wrong is a finding for the report. And it
+**refuses nothing**: a ticket rated high on every criterion is still startable,
+and the rating tells whoever starts it what to have ready.
+
+**Prerequisites:** the **Abacus MCP server**, recent enough to offer
+`set_ticket_risk` — against an older one the skill says the assessment cannot be
+recorded and stops, rather than filing it as a comment, because a comment is not
+a rating and the next person to run this would have no idea the work was already
+done. Plus a checkout of the repo the ticket is about: step 3 is a real code
+pass, and without one every rationale is the sentence this skill exists to
+prevent.
+
 ## `/colormath:implement-ticket` — build a planned ticket and ship it
 
 Takes a ticket key (`/colormath:implement-ticket CM-00012`) and takes a groomed
