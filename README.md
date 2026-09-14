@@ -2,7 +2,7 @@
 
 The [Claude Code](https://code.claude.com) skills for repos built on the
 colormath shared infrastructure — a plugin marketplace holding one plugin,
-`colormath`, with seven skills that take work from a one-line ticket to a merged
+`colormath`, with nine skills that take work from a one-line ticket to a merged
 PR.
 
 The gates these skills key on live in
@@ -51,14 +51,19 @@ Each one's behaviour, prerequisites and contract dependencies are documented in
 | `/colormath:gather-requirements` | a ticket or initiative key | Settles what is being asked for — investigates enough to ask good questions, interviews until the picture is complete, then writes back a standalone description, and on an initiative its feature definitions too. Writes no plans. |
 | `/colormath:plan-initiative` | an initiative key | Runs `plan-ticket` over every ticket under it, in build order, injecting each one's place in the sequence and what the earlier plans decided — so the seams line up. |
 | `/colormath:plan-ticket` | a ticket key | Plans a gathered ticket until it can be worked — investigates the code at file-and-line level, then writes back a file-anchored implementation plan and an executable QA plan. Writes no description. |
+| `/colormath:assess-risk` | a ticket key | Rates a planned ticket against the engineering-risk rubric the tracker declares — reads the criteria out of the tool, goes and looks at the code each one asks about, then writes one level and one specific rationale per criterion. Advisory: it refuses nothing and moves nothing. |
 | `/colormath:implement-ticket` | a ticket key | Builds a groomed ticket — checks the plan still matches the code, builds at the layer it names, executes the ticket's QA plan against the running stack, hands off to `ship`. |
+| `/colormath:just-do-it` | a ticket key | The fast path, for work already thought through — checks the ticket is genuinely small, then builds and ships it in one session instead of three skills. Hands back rather than guessing when it turns out not to be. |
 | `/colormath:bugfix` | a bug report | Turns a specific report into a merged fix — reproduces it before touching code, fixes at the layer the invariant belongs to, remediates data the bug already corrupted, hands off to `ship`. |
 | `/colormath:qa` | a focus area | QAs it against the running stack across security, correctness and accessibility catalogs, reproduces every finding, hands the fixes to `ship`. |
 | `/colormath:ship` | the current branch | Opens the PR, watches the gates, reads the review, executes the ticket's QA plan, fixes every finding it can, then decides once: auto-merge when genuinely clean, or hold and explain. |
 
-`gather-requirements`, `plan-ticket`, `plan-initiative` and `implement-ticket`
-need the [Abacus](https://github.com/ColorMath/abacus) MCP server connected —
-the plugin's one tracker dependency.
+Every skill that takes a ticket key — `gather-requirements`, `plan-ticket`,
+`plan-initiative`, `assess-risk`, `implement-ticket` and `just-do-it` — needs
+the [Abacus](https://github.com/ColorMath/abacus) MCP server connected, the
+plugin's one tracker dependency. `assess-risk` wants a recent one: it writes
+through `set_ticket_risk`, and an Abacus without that tool is one it will
+decline to work against rather than file the assessment somewhere else.
 
 **Grooming is two skills, and the split is the contract.**
 `gather-requirements` owns `description` (and an initiative's features);
@@ -99,6 +104,7 @@ plugin/
   .claude-plugin/plugin.json        the plugin manifest — the one versioned stamp site
   README.md                         what each skill does, in full
   skills/<name>/SKILL.md            one directory per skill; the directory name is the command
+  evals/<skill>/                    one eval suite per skill — see LIFECYCLE.md#testing
 release/                            cut, stamp, verify, publish — see LIFECYCLE.md
 CHANGELOG.md                        what changed, per version
 LIFECYCLE.md                        how this repo versions, releases and propagates

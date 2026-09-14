@@ -1,0 +1,13 @@
+schema_version: "1.1"
+name: already-assessed
+tags:
+  - assess-risk
+  - should-proceed
+execution:
+  prompt: "/colormath:assess-risk CM-00704"
+  model: claude-sonnet-4-6
+  max_turns: 30
+  timeout_seconds: 600
+  runs: 3
+context:
+  scaffold_script: scaffold.sh

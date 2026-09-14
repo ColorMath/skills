@@ -18,6 +18,44 @@ which still covers the gates. This repo's history begins at the extraction.
 
 ## Unreleased
 
+### Added
+
+- **`/colormath:assess-risk`** new skill that rates a ticket against the
+  engineering-risk rubric Abacus declares — one level and one rationale per
+  criterion, written through `set_ticket_risk`. It reads the criteria and the
+  levels out of the tool's own generated schema rather than carrying a copy, so
+  a criterion added or retired in Abacus's `core/risk.py` reaches the skill on
+  its next call with no edit here. Advisory throughout: it moves no ticket, no
+  column names it, and it refuses nothing on the strength of a rating. Its
+  `allowed-tools` omits `update_ticket` deliberately — `description`, `plan` and
+  `qa_plan` belong to `gather-requirements` and `plan-ticket`. **Contract
+  surface: Abacus MCP `set_ticket_risk`**, added in Abacus CM-00094; against an
+  older Abacus the skill says the assessment cannot be recorded and stops rather
+  than filing it as a comment.
+
+  Ships with an eight-case eval suite under `plugin/evals/assess-risk/`: five
+  that must rate (a migration-bearing feature, a permission-check bug, a
+  genuinely low-risk change that must come out *low*, an already-assessed ticket
+  it must revise rather than re-author, and a tool schema carrying a **sixth**
+  criterion it must rate with no edit to the skill) and three that must refuse
+  and write nothing (an initiative, a task, and an Abacus whose tool list has no
+  `set_ticket_risk`). The mocks carry a real `_tools.json`, generated from
+  Abacus's own registry, so the suite grades the skill against the rubric Abacus
+  actually serves.
+
+### Changed
+
+- **`README.md`, `plugin/README.md` and the marketplace description** now
+  document `/colormath:just-do-it`, which v5.4.0 shipped without adding to any
+  of the three. Nothing gates those documents —
+  `release/check-manifests.sh` only checks each `SKILL.md`'s frontmatter — so a
+  skill can ship undocumented, and this one had.
+
+- **`LIFECYCLE.md`'s `## Testing` section** now describes the eval suites under
+  `plugin/evals/`, how to run one, and the two mock traps that make a suite grade
+  the wrong thing. It had claimed since before v5.4.0 that there was nothing
+  behavioural to run locally.
+
 ## v5.4.0 — 2026-09-12
 
 ### Added

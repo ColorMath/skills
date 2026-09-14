@@ -1,0 +1,143 @@
+{
+  "tools": [
+    {
+      "name": "get_ticket",
+      "description": "Get one ticket in full, including its description and its project and swimlane context, plus its comments. Use this before update_ticket so you are editing from the current text rather than overwriting it. The ticket's `key` (e.g. CM-00001) is what people call it by \u2014 quote that rather than the UUID when reporting back. For an initiative this is also the only place its contents are listed: the project tools hide them.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "ticket_id": {
+            "type": "string",
+            "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$",
+            "description": "The ticket's UUID."
+          },
+          "key": {
+            "type": "string",
+            "description": "The ticket's key, e.g. CM-00001. Case and zero-padding don't matter, so CM-1 works too. Use this when a person gave you a key rather than a UUID."
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "record_metric",
+      "description": "Record that something measurable happened to a ticket \u2014 most often, that you ran a skill against it. Abacus cannot observe this: nothing outside your own run knows a skill started, so if you do not record it, it did not happen as far as the ticket is concerned. Record it ONCE, when you finish, not on every turn and not when you begin \u2014 a skill that reports each time it thinks makes the count meaningless. If you were interrupted and never finished, record nothing. Measurements accumulate and are never edited or deleted, by you or by anybody: get this right rather than expecting to correct it. Read the summary back with get_ticket.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "ticket_id": {
+            "type": "string",
+            "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$",
+            "description": "The ticket the work was done on."
+          },
+          "metric": {
+            "type": "string",
+            "enum": [
+              "skill_invoked"
+            ],
+            "description": "What kind of measurement this is. skill_invoked \u2014 somebody ran an agent skill against this ticket. The subject is the bare skill name, without the plugin or the leading slash."
+          },
+          "subject": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 128,
+            "description": "What the measurement is of, in lowercase words joined by single hyphens \u2014 for skill_invoked, the bare skill name (gather-requirements), never the whole command. Required for a metric that names a subject above, and refused for one that does not."
+          },
+          "value": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 2147483647,
+            "description": "How much, in the unit the metric names. Defaults to 1, which is what a single run is \u2014 pass this only to report several at once, or an amount."
+          },
+          "note": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 255,
+            "description": "Optional one-line context, shown beside the entry in the ticket's activity feed. Anything longer belongs in a comment."
+          }
+        },
+        "required": [
+          "ticket_id",
+          "metric"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "list_projects",
+      "description": "List every project in the organization with its swimlane and ticket counts. Start here when you don't yet know which project to work on; the returned project ids are what every other tool takes. Each project also carries the ticket_prefix its keys use, e.g. CM.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {},
+        "required": [],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "list_tickets",
+      "description": "List a project's tickets as a flat array, newest position first within each swimlane, optionally narrowed to one swimlane or one assignee. Prefer this over get_project when you want to filter or count rather than understand the project's layout. Tickets inside an initiative are not listed unless you ask for that initiative by id.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "project_id": {
+            "type": "string",
+            "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$",
+            "description": "The project whose tickets to list."
+          },
+          "swimlane_id": {
+            "type": "string",
+            "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$",
+            "description": "Only return tickets in this swimlane."
+          },
+          "assignee_id": {
+            "type": "string",
+            "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$",
+            "description": "Only return tickets assigned to this member."
+          },
+          "unassigned_only": {
+            "type": "boolean",
+            "description": "Only return tickets with no assignee."
+          },
+          "initiative_id": {
+            "type": "string",
+            "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$",
+            "description": "Only return the tickets filed under this initiative. Without it you get the project's own tickets and no initiative's contents \u2014 an initiative is listed as one ticket, carrying the counts that say how much is inside it."
+          }
+        },
+        "required": [
+          "project_id"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "add_comment",
+      "description": "Write a comment on a ticket. Use this to record what you did, what you found, or a question for the assignee \u2014 anything that belongs in the discussion rather than in the ticket's own description. Comments you write are visibly attributed to the agent, alongside the person whose access you are using, so say things you would be happy to have quoted back. Editing and deleting comments is not available to agents; only the person who wrote a comment can do that, in the web UI.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "ticket_id": {
+            "type": "string",
+            "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$",
+            "description": "The ticket to comment on."
+          },
+          "body": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 10000,
+            "description": "What to say. Plain text; line breaks are kept."
+          }
+        },
+        "required": [
+          "ticket_id",
+          "body"
+        ],
+        "additionalProperties": false
+      }
+    }
+  ]
+}

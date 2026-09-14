@@ -357,6 +357,63 @@ building.
 `plan-ticket` call does a real code pass), and an initiative that has already
 started building. Nothing else.
 
+## `/colormath:assess-risk` — rate a ticket against the engineering-risk rubric
+
+Takes a ticket key (`/colormath:assess-risk CM-00012`) and answers the one
+question a groomed ticket does not: **how badly can this go wrong?** A ticket
+already says what it is, where it is, what it is for and what somebody intends
+to do about it. Two features with identical plans and identical QA plans are
+not identically safe to start, and the moment that bites is the one where a
+ticket is sitting in a column waiting for somebody to choose it.
+
+1. **Read the ticket and check the altitude** — a **feature** or a **bug**
+   proceeds. An **initiative** is not implemented directly, so rating the
+   container rates nothing; it lists the children and offers to assess them
+   instead. A **task** is work that isn't code, and blast radius is a question
+   about a diff. Ratings the ticket already carries mean this is a revision
+   rather than an authoring, and the existing rationales are read as evidence of
+   what somebody already went and looked at.
+2. **Read the rubric off the tool, never from memory** — the criteria and the
+   levels are declared in the tracker's code and generated into
+   `set_ticket_risk`'s own schema, so the `enum` is the authoritative list. That
+   is the whole bargain: a criterion added or retired in the tracker reaches this
+   skill on its next call with no edit here. Rate every criterion the tool
+   offers — if it has six, write six.
+3. **Go and look, once per criterion** — this is where the time goes, and it is
+   what separates a rating from a guess. Each criterion is a question about the
+   code, answered by opening the code: count the callers rather than estimating
+   the blast radius, open the migration the plan names, name the permission check
+   the change lands beside.
+4. **Write one rating per criterion** — one call each, no batch, so a run that
+   dies halfway has recorded what it had actually decided. **High always means
+   more risk**, including for the criterion whose English name reads like a
+   virtue: an easily reversed change is *low* risk.
+5. **Report what was rated and where it is least sure** — an assessment that
+   presents five equally confident sentences is hiding the one that matters.
+
+The bar every rationale is held to is that **it is useful in proportion to how
+specifically it can be wrong**. "This touches the database, so there is some
+migration risk" names no file, no caller and no table; it would read identically
+on forty other tickets, and nobody can contradict it, which is the same as
+nobody being able to trust it.
+
+Three things it deliberately will not do. It **never moves the ticket** — no
+column names this skill, and a ticket that changed lane because somebody
+assessed it has been moved by the assessment, which is the opposite of advisory.
+It **never writes `description`, `plan` or `qa_plan`**; it holds no
+`update_ticket` tool at all, which is where that is enforced rather than merely
+asked for, and a plan it thinks is wrong is a finding for the report. And it
+**refuses nothing**: a ticket rated high on every criterion is still startable,
+and the rating tells whoever starts it what to have ready.
+
+**Prerequisites:** the **Abacus MCP server**, recent enough to offer
+`set_ticket_risk` — against an older one the skill says the assessment cannot be
+recorded and stops, rather than filing it as a comment, because a comment is not
+a rating and the next person to run this would have no idea the work was already
+done. Plus a checkout of the repo the ticket is about: step 3 is a real code
+pass, and without one every rationale is the sentence this skill exists to
+prevent.
+
 ## `/colormath:implement-ticket` — build a planned ticket and ship it
 
 Takes a ticket key (`/colormath:implement-ticket CM-00012`) and takes a groomed
@@ -369,35 +426,82 @@ ticket the rest of the way. The thinking already happened in
    code work; an **initiative** is the wrong altitude. Reads the parent
    initiative too when there is one, so the build doesn't collide with the ticket
    next to it.
-2. **Check the plan against the code before touching anything** — the plan was
+2. **Say on the project that somebody is on it** — the ticket moves into the
+   column that names this skill **before** a line of code is read, not when the
+   work is done. A move made at the end has never once been true while it was
+   true: the ticket spends the hours where a collision actually costs something
+   sitting in the column nobody has picked it up from. The destination is read
+   off the project rather than guessed — each swimlane says which skill moves
+   work on from it and which lane that leads to — and a project whose schema
+   names no such column is reported rather than worked around.
+3. **Check the plan against the code before touching anything** — the plan was
    written against the codebase as it *was*: files move, adjacent changes land,
    assumptions expire. Every step is walked against the repo, and where it no
    longer holds that is a **finding for the user**, not something to route around
    silently. Sometimes the most valuable outcome here is "this plan no longer
    holds, here's why" rather than a PR.
-3. **Ask only what actually blocks** — by this point there is usually nothing;
+4. **Ask only what actually blocks** — by this point there is usually nothing;
    grooming's whole job was to remove it. One round, and wanting several rounds
    means the ticket isn't groomed and should go back.
-4. **Build it at the layer the plan names**, on a branch, in the idiom of the
+5. **Build it at the layer the plan names**, on a branch, in the idiom of the
    surrounding code, with tests at the layer the change lives at. Deviations from
    the plan are recorded in chat, the PR body and a ticket comment — never by
    rewriting the plan field, which would erase the difference between what was
    intended and what happened.
-5. **Execute the QA plan against the running stack** — every item gets an
+6. **Execute the QA plan against the running stack** — every item gets an
    observation, `⚠️` when no browser is reachable for a UI item, and a failure is
    fixed and re-run rather than shipped with the document claiming it passed.
-6. **Ship** — `make preflight`, then `/colormath:ship` for PR, gates, review, a
+7. **Ship** — `make preflight`, then `/colormath:ship` for PR, gates, review, a
    second pass over the same QA plan, and the merge decision. Comments the
    outcome back onto the ticket.
 
 It leaves the ticket's own fields alone: `plan` and `qa_plan` are the record of
-intent, the comment is the record of what happened. It does not move tickets
-between lanes — one project's "In Review" is another's "Staging", and guessing at
-somebody's workflow is worse than leaving it where they put it.
+intent, the comment is the record of what happened. The **lane** it does change,
+and only that: one move in, at step 2, and `/colormath:ship` makes the next one
+a column further on. That used to be forbidden, for a good reason — lane meaning
+was free text, so one project's "In Review" was another's "Staging" and guessing
+at somebody's workflow was worse than leaving the ticket alone. Abacus columns
+now come from a project schema and say for themselves which skill leads into
+them, so there is nothing left to guess. A run that hands the ticket back
+instead of building puts it where it found it.
 
 **Prerequisites:** the **Abacus MCP server**, a checkout with the stack runnable
-(step 5 is real QA, not a test run), and `/colormath:ship`'s own prerequisites,
+(step 6 is real QA, not a test run), and `/colormath:ship`'s own prerequisites,
 since it hands off there.
+
+## `/colormath:just-do-it` — build and ship a small ticket in one session
+
+Takes a ticket key (`/colormath:just-do-it CM-00012`) and takes it all the way
+in one session, skipping `gather-requirements` and `plan-ticket` entirely. The
+normal flow is the right weight for most work and too much ceremony for the
+rest: a ticket that says "add a `deleted_at` column to `organizations`" does not
+need three skills to tell it what it already knows.
+
+1. **Check the ticket is genuinely small** — an initiative or a task is out
+   immediately. Otherwise it reads the code the ticket would touch and answers
+   one question: can a single agent, in one session, build this and be confident
+   it is correct? One or two files following an existing pattern is a fit; three
+   modules, a new data model, or a description leaving real design decisions open
+   is not.
+2. **Present the fitness assessment and let the user overrule it** — including
+   when the verdict is "use the normal flow", which names the skill to start
+   with. "Small" is a feeling rather than a measurement, so the judgement is
+   shown rather than acted on silently.
+3. **Claim it on the project** — the same move `implement-ticket` makes, into the
+   column whose `exit_commands` name `implement-ticket`, before the building
+   starts rather than after.
+4. **Build it**, on a branch, in the idiom of the surrounding code.
+5. **QA it**, then **ship** through `/colormath:ship` for PR, gates, review and
+   the merge decision.
+
+A thin description is fine here, which is the whole point — the thinking
+happened in the user's head, and this skill trusts that. What it does not do is
+pretend afterwards: a ticket that turns out to be bigger than it looked is
+handed back at step 1, before a branch exists, rather than quietly becoming an
+unplanned three-module change.
+
+**Prerequisites:** the **Abacus MCP server**, a checkout with the stack
+runnable, and `/colormath:ship`'s own prerequisites, since it hands off there.
 
 ## Adding a skill
 

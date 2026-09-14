@@ -7,3 +7,10 @@ plugin/skills/qa-workspace/
 # Editor and OS noise
 .DS_Store
 *.swp
+
+# Agent scratch workspace (colormath skills). Not source.
+.colormath/
+
+# Eval run artifacts. The suite ships; one run of it does not.
+plugin/evals/*/results/
+plugin/evals/results/
