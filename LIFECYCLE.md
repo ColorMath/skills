@@ -123,9 +123,16 @@ skill against a scaffolded fake repo with the MCP server mocked, and grade what
 it did:
 
 ```
-claude plugin eval --eval-dir plugin/evals/just-do-it   --threshold 0.8
-claude plugin eval --eval-dir plugin/evals/assess-risk  --threshold 0.8
+claude plugin eval ./plugin --eval-dir evals/just-do-it  --scaffold --trust-plugin --threshold 0.8
+claude plugin eval ./plugin --eval-dir evals/assess-risk --scaffold --trust-plugin --threshold 0.8
 ```
+
+**The shape of that command is not obvious and getting it wrong wastes a run.**
+The target is the plugin directory, so `--eval-dir` is read *relative to it* —
+`evals/assess-risk`, not `plugin/evals/assess-risk`. `--scaffold` is off by
+default and without it every case runs against an empty workspace, which fails
+in a way that looks like a skill regression; `--trust-plugin` skips the
+first-run trust prompt.
 
 **They are an author's pre-flight, not a gate.** A run costs model calls, so CI
 does not do it; run the suite for the skill you edited before opening the PR,
@@ -135,7 +142,7 @@ than the model's defaults — a case that passes without the skill is testing
 nothing.
 
 Each case directory holds `case.yaml`, a `graders/` directory, a `mocks/`
-directory and a copy of the suite's `_shared/scaffold.sh`. Two things about
+directory and a copy of the suite's `_shared/scaffold.sh`. Three things about
 mocks are easy to get wrong and expensive to discover:
 
 - `mocks/<server>/_tools.json` is a saved `tools/list` response, and it is what
@@ -143,9 +150,19 @@ mocks are easy to get wrong and expensive to discover:
   tool with a permissive schema and no description, so a skill specified to read
   something out of a tool's own `enum` — `assess-risk` reads the risk rubric
   that way — is graded against a vocabulary that does not exist.
+- **A root-level `anyOf` in a mocked tool's `inputSchema` makes the child drop
+  that tool**, and the run then dies in the pre-flight with `mocked tools not
+  offered by the child: <name>`. Abacus really does serve one on `get_ticket`
+  (`ticket_id` or `key`), and an ordinary Claude Code session accepts it — this
+  is a trap in the eval child, not a malformed schema. Strip it from the mock
+  and keep the rest; `additionalProperties: false` is fine.
 - The scaffold copy in each case must stay byte-identical to `_shared/`. It is
   duplicated rather than referenced because the harness copies one script per
   case; `diff` them when you touch it.
+
+**A pre-flight failure costs $0.00 and no model calls**, which is what makes
+fixture bugs cheap to bisect: copy one case into a throwaway suite, cut
+`max_turns` to 1, and change one thing at a time until the pre-flight passes.
 
 A run writes to `plugin/evals/<suite>/results/`, which is gitignored: the suite
 is source, one run of it is not. So is `.colormath/`, the agent scratch

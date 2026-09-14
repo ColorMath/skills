@@ -16,18 +16,6 @@
             "description": "The ticket's key, e.g. CM-00001. Case and zero-padding don't matter, so CM-1 works too. Use this when a person gave you a key rather than a UUID."
           }
         },
-        "anyOf": [
-          {
-            "required": [
-              "ticket_id"
-            ]
-          },
-          {
-            "required": [
-              "key"
-            ]
-          }
-        ],
         "additionalProperties": false
       }
     },
