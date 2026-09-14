@@ -1,0 +1,13 @@
+schema_version: "1.1"
+name: bug-permission-check
+tags:
+  - assess-risk
+  - should-proceed
+execution:
+  prompt: "/colormath:assess-risk CM-00702"
+  model: claude-sonnet-4-6
+  max_turns: 10
+  timeout_seconds: 300
+  runs: 3
+context:
+  scaffold_script: scaffold.sh

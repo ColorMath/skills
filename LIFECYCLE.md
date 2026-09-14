@@ -110,17 +110,49 @@ changelog entries live upstream. `verify.sh --audit-all` therefore starts at
 
 ## Testing
 
-There is no gate suite here and nothing to run locally but the two release
-scripts, which CI runs on every PR:
+CI runs two things on every PR, and both have a local mirror:
 
 ```
 ./release/verify.sh            the version invariant above
 ./release/check-manifests.sh   both manifests parse and describe what is on disk
 ```
 
-The skills themselves are prose instructions to an agent, and the honest test is
-running one against a real repo and reading what it did. `skill-creator` evals
-are the closest thing to an automated check; their artifacts are gitignored
-(`plugin/skills/*/evals/`, `plugin/skills/qa-workspace/`) because they are full
-of fixtures from whichever consumer repo the eval ran against — a record of one
-run, not something this repo ships.
+Neither looks at behaviour. **The behavioural tests are the eval suites under
+`plugin/evals/`** — one directory per skill, each a set of cases that run the
+skill against a scaffolded fake repo with the MCP server mocked, and grade what
+it did:
+
+```
+claude plugin eval --eval-dir plugin/evals/just-do-it   --threshold 0.8
+claude plugin eval --eval-dir plugin/evals/assess-risk  --threshold 0.8
+```
+
+**They are an author's pre-flight, not a gate.** A run costs model calls, so CI
+does not do it; run the suite for the skill you edited before opening the PR,
+and say in the PR what it scored. `--ablation` re-runs each case with the skill
+removed, which is the only evidence that a case is measuring the skill rather
+than the model's defaults — a case that passes without the skill is testing
+nothing.
+
+Each case directory holds `case.yaml`, a `graders/` directory, a `mocks/`
+directory and a copy of the suite's `_shared/scaffold.sh`. Two things about
+mocks are easy to get wrong and expensive to discover:
+
+- `mocks/<server>/_tools.json` is a saved `tools/list` response, and it is what
+  gives the model the **real** tool schema. Without it the runner serves every
+  tool with a permissive schema and no description, so a skill specified to read
+  something out of a tool's own `enum` — `assess-risk` reads the risk rubric
+  that way — is graded against a vocabulary that does not exist.
+- The scaffold copy in each case must stay byte-identical to `_shared/`. It is
+  duplicated rather than referenced because the harness copies one script per
+  case; `diff` them when you touch it.
+
+A run writes to `plugin/evals/<suite>/results/`, which is gitignored: the suite
+is source, one run of it is not. So is `.colormath/`, the agent scratch
+workspace, and the older `skill-creator` eval artifacts
+(`plugin/skills/*/evals/`, `plugin/skills/qa-workspace/`), which were full of
+fixtures from whichever consumer repo they ran against.
+
+None of that replaces running a skill against a real repository and reading what
+it did. The suites catch the regressions a rewrite introduces; they do not tell
+you the skill is worth having.
