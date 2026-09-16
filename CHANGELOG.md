@@ -18,6 +18,8 @@ which still covers the gates. This repo's history begins at the extraction.
 
 ## Unreleased
 
+## v5.5.0 — 2026-09-16
+
 ### Added
 
 - **`/colormath:assess-risk`** new skill that rates a ticket against the
