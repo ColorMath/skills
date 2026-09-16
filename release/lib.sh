@@ -97,6 +97,13 @@ changelog_has_unreleased() { grep -q '^## Unreleased[[:space:]]*$' "$CHANGELOG";
 # versions on purpose, and every skill is free to cite the release a behaviour
 # arrived in; rewriting any of that would be a silent falsification of history.
 
+# Written through a temp file rather than `sed -i`, which is not portable: the
+# BSD form takes the backup suffix as a separate argument and the GNU form takes
+# it attached, so `sed -i ''` works on macOS and, on Linux, silently reads the
+# expression as a filename. That is how this shipped, and it meant the Release
+# workflow — ubuntu-latest, GNU sed — could not stamp at all while a release cut
+# by hand on a Mac worked fine. Same shape as the changelog rewrite in stamp.sh.
 write_plugin_version() {
-	sed -i '' "s|^\([[:space:]]*\"version\"[[:space:]]*:[[:space:]]*\"\)[0-9][0-9.]*\(\"\)|\1${1#v}\2|" "$PLUGIN_JSON"
+	sed "s|^\([[:space:]]*\"version\"[[:space:]]*:[[:space:]]*\"\)[0-9][0-9.]*\(\"\)|\1${1#v}\2|" \
+		"$PLUGIN_JSON" >"$PLUGIN_JSON.tmp" && mv "$PLUGIN_JSON.tmp" "$PLUGIN_JSON"
 }

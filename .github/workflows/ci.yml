@@ -46,3 +46,24 @@ jobs:
     steps:
       - uses: actions/checkout@v6
       - run: ./release/check-manifests.sh
+
+  # The stamper, rehearsed. Neither job above runs cut.sh or stamp.sh, and that
+  # gap shipped a real bug: write_plugin_version used the BSD `sed -i ''` form,
+  # which GNU sed reads as an empty script followed by a filename, so the
+  # Release workflow - ubuntu-latest - could not stamp at all. It went unnoticed
+  # because the one release cut after it was cut by hand on a Mac.
+  #
+  # So this runs the stamper on a throwaway version and reads back what it
+  # wrote. It mutates the checkout and commits nothing; the runner is discarded.
+  # Cheap, and the only thing here that exercises the release path before a
+  # human dispatches it for real.
+  stamp:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - run: ./release/stamp.sh v99.99.99 --date 2099-01-01
+      - name: The stamp reached both sites
+        run: |
+          grep -q '"version": "99.99.99"' plugin/.claude-plugin/plugin.json
+          grep -q '^## v99.99.99 — 2099-01-01$' CHANGELOG.md
+          grep -q '^## Unreleased$' CHANGELOG.md
