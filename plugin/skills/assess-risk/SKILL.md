@@ -170,6 +170,16 @@ There is no batch call and that is deliberate — each write is atomic, each
 lands its own audit events, and a run that dies halfway has recorded what it
 had actually decided rather than nothing.
 
+**The writes are the deliverable, and the run is not finished until every
+criterion the tool listed has one.** An assessment that exists only in your
+report has not happened: nothing reads chat, the ticket still shows as
+unassessed, and the next person to run this skill has no way to know the reading
+was already done. So do not stop at four of five because the fifth felt obvious —
+"obvious" is a rationale, and a criterion nobody sent is a criterion nobody
+looked at. If you genuinely cannot rate one, write it anyway at the level you do
+believe, say in the rationale what you could not check, and name it in step 5 as
+the one you are least sure of.
+
 The rationale is **markdown source**, stored as written and rendered when read.
 Keep it to a few sentences. This is a judgement somebody reads on the way past,
 not a report.
@@ -229,6 +239,15 @@ missing row.
   thing somebody does to a ticket wherever it is sitting, and no column names
   it. A ticket that changes lane because it was assessed has been moved by the
   assessment, which is the opposite of advisory.
+- **Invoked by another skill, do exactly the same job.** `plan-ticket`,
+  `just-do-it`, `implement-ticket` and `bugfix` now call this skill themselves,
+  and a caller that has already read the code is the *reason* it is cheap there —
+  not a licence to trust its reading instead of doing your own. Rate every
+  criterion, write every one, record the metric, and report as fully as you would
+  to a person who typed the command. In particular, do not let a caller's
+  conclusions stand in for step 3: a plan saying a change is small is a claim to
+  check, not evidence. And never treat your own rating as a verdict on the
+  caller's work — nothing is refused over a rating, the caller included.
 - **Never write `description`, `plan` or `qa_plan`.** Those belong to
   `/colormath:gather-requirements` and `/colormath:plan-ticket`, and this skill
   holds no `update_ticket` tool for exactly that reason. If the plan is wrong,

@@ -77,7 +77,41 @@ tracking it.
 **Keep the ticket's current `swimlane_id`** so you can put it back if you
 bail out.
 
-## 3. Build it
+## 3. Assess the risk, before you build
+
+Invoke `/colormath:assess-risk` with the ticket key, and let it do its job
+rather than pre-rating the criteria yourself.
+
+**Before the build, not after — this is the one skill where the order matters.**
+Everywhere else the rating is a record. Here it is the last checkpoint in front
+of a change that is about to go all the way to a merge recommendation without a
+groomed plan or a reviewed QA plan anywhere behind it. A rating that arrives
+after the build describes work already shipped.
+
+**This path is exactly where a rubric earns its keep.** A ticket comes through
+here *because* somebody judged it small, and "small" is a feeling — the same
+warning step 1 opens with. Blast radius, reversibility and authorization surface
+are the three ways a small-looking ticket is not small, and nothing else in this
+skill asks about them. Note too that no other skill will ever assess these
+tickets: `just-do-it` replaces the whole gather/plan flow, so the step that
+normally carries the assessment never runs.
+
+Step 1 has just read the modules, services, models, templates and tests the
+change touches, so the rubric costs almost nothing here.
+
+**Only for a `feature` or a `bug`.** Step 1 already refuses a task and an
+initiative, so anything reaching here qualifies.
+
+**It never gates you, and it is not a second fitness check.** Nothing is refused
+over a rating. A high rating is not a reason to bail out to the normal flow —
+step 1 owns that decision and it has already been made, with the user's
+agreement. What a high rating changes is what you are careful about in step 4,
+and what the ticket can tell somebody afterwards.
+
+If `assess-risk` stops because this Abacus offers no `set_ticket_risk` tool, say
+so and carry on building.
+
+## 4. Build it
 
 Branch first: `feat/<ticket-key-slug>` or the repo's own convention. Never the
 default branch.
@@ -95,7 +129,7 @@ needed, an invariant has to bend, a design decision is genuinely open — stop.
 Tell the user what you found and recommend handing it to the normal flow. Move
 the ticket back to the column you saved in step 2 if you bail out.
 
-## 4. QA it
+## 5. QA it
 
 Bring the stack up the way the repo does it. Work through the acceptance
 criteria from the ticket description against the running system. Use browser
@@ -107,7 +141,7 @@ tools available, say so plainly and mark it unverified.
 
 Leave the stack running for ship.
 
-## 5. Ship it
+## 6. Ship it
 
 Run `make preflight` (or the repo's equivalent) to catch avoidable failures
 before CI.
@@ -116,12 +150,13 @@ Invoke `/colormath:ship`. It handles the PR, gates, review, a second QA pass,
 fixes, the merge decision, and the project move.
 
 Give ship a title naming the change, and a body with: the ticket key, what it
-asked for, what you built, and anything unverified from step 4.
+asked for, what you built, how it rated in step 3, and anything
+unverified from step 5.
 
 When ship comes back, `add_comment` on the ticket with the outcome: the PR
 link, whether it merged or is held, and anything notable.
 
-## 6. Record that you ran
+## 7. Record that you ran
 
 `mcp__abacus__record_metric` with the ticket's `id`, `metric: "skill_invoked"`,
 and `subject: "just-do-it"`.

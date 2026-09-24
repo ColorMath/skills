@@ -286,7 +286,41 @@ Ask: could this defect have written bad rows, files, or cached values? If so:
 - **Never run it against production yourself.** Ship it as a migration or a
   reviewed script, following the repo's migration conventions.
 
-## 7. Ship it
+## 7. Re-assess the risk, if the fix was bigger than the bug
+
+A groomed bug has usually been rated already, by `plan-ticket`, against the plan
+it wrote. **Re-run `/colormath:assess-risk` with the ticket key when the fix
+moved one of the rubric's questions** — and skip it when it did not.
+
+A bug fix moves them more often than a feature does, which is why this step is
+here rather than left to somebody's memory. The cause is frequently not where the
+symptom was, so the fix lands somewhere nobody rated:
+
+- **the fix sits deeper than expected** — a shared service or a path every request
+  takes, rather than the surface the report described. That is blast radius, and
+  step 5 chose that layer deliberately, so you already know;
+- **data remediation** (step 6) turned out to be needed. A backfill over rows
+  written under the defect is the `data_and_migration` criterion almost by
+  definition, and a fix with a remediation script is not the change that was
+  rated;
+- the defect or its fix touches **authorization, tenancy scoping or sessions** —
+  common for exactly the bugs worth fixing fast, and the one criterion where
+  being wrong is worst;
+- the fix is **hard to undo**, or leans on something **external** that was not
+  there before.
+
+Skip it for an ordinary fix at the layer the plan expected, with no data to
+remediate. And skip it, saying so, for a bug that was never assessed and never
+planned — an unrated ticket on its way out of the door is a thin moment to start
+a rubric, and `assess-risk` wants a plan to read.
+
+**Before ship, not after**, for the same reason as `implement-ticket`: ship can
+auto-merge, and a rating corrected after the merge is right too late.
+
+Say in your report which way you decided. **Re-rating is not free** — every run
+writes a `skill_invoked` row nobody can delete.
+
+## 8. Ship it
 
 The ticket has been sitting in the right column since step 2, which is what
 `ship` needs: it moves the ticket on from *this* column, and a ticket still in
@@ -303,10 +337,11 @@ the one behind would be moved from the wrong place.
 Give ship a PR title naming the user-visible symptom, and make sure the body
 carries what a reviewer needs and no reviewer can reconstruct on their own:
 **the report** as received, **the repro** you ran, **the cause** you found,
-**why the fix sits at that layer**, and **the data remediation** — including
-anything you deliberately left for a human.
+**why the fix sits at that layer**, **the data remediation** — including
+anything you deliberately left for a human — and **whether step 7 re-assessed
+the risk, and what moved**.
 
-## 8. Record that you ran
+## 9. Record that you ran
 
 Abacus cannot see this happen. Nothing outside your own run knows a skill
 started, so a run you do not record did not happen as far as the ticket is

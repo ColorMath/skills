@@ -18,6 +18,50 @@ which still covers the gates. This repo's history begins at the extraction.
 
 ## Unreleased
 
+### Added
+
+- **The skills now run `assess-risk` themselves.** It was a skill nobody was
+  reaching: Abacus has invited it from the Risk card on every ticket page since
+  it shipped, and a rubric that runs only when somebody remembers is a rubric
+  that does not run. Five skills changed, and where the call sits is the whole
+  design:
+  - `plan-ticket` assesses **every** feature and bug, as a new step 7, directly
+    after its code investigation. The rubric's questions — blast radius,
+    migrations, authorization surface — are the ones that pass just answered with
+    the files open, so this is the cheapest point in the process to ask them, and
+    the plan it has just written is the best input the rubric will ever get.
+  - `just-do-it` assesses **before** it builds, as a new step 3. That path
+    replaces the whole gather-and-plan flow, so nothing else would ever rate
+    these tickets — and a ticket arrives there *because* somebody judged it
+    small, which is exactly the judgement the rubric exists to check.
+  - `implement-ticket` (new step 9) and `bugfix` (new step 7) re-assess **only
+    when the work changed shape** — an unplanned migration, a fix that landed
+    deeper than the report suggested, authorization surface nobody rated. Both
+    run before `ship`, because ship can auto-merge and a rating corrected after
+    the merge is right too late. Re-rating for its own sake is deliberately
+    discouraged: every run writes a `skill_invoked` row nobody can delete.
+  - `gather-requirements` assesses only when the ticket **already carried
+    ratings** and the description changed substantively, since a rating
+    describing a scope the ticket no longer has reads as current. Otherwise it
+    skips, and `plan-ticket` does it properly minutes later.
+  - `plan-initiative` adds no call of its own and says so, inheriting one
+    assessment per child through `plan-ticket`.
+
+### Changed
+
+- `assess-risk` now says that the writes are the deliverable and the run is not
+  finished until every criterion the tool listed has one — a partial assessment
+  that exists only in a report leaves the ticket showing as unassessed.
+- `assess-risk` gains a rule for being invoked by another skill: do the same job,
+  and do not let the caller's conclusions stand in for going and looking. A plan
+  saying a change is small is a claim to check, not evidence. Nothing is refused
+  over a rating, the calling skill included.
+- `plan-ticket` and `gather-requirements` gain `Skill` in `allowed-tools`, which
+  they needed to be able to invoke anything at all.
+- The ten `should-proceed` cases in the `just-do-it` eval suite gain a
+  `set_ticket_risk` mock, so the new step has something to write to. The
+  bail-out cases deliberately do not: they never reach it.
+
 ## v5.5.0 — 2026-09-16
 
 ### Added

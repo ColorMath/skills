@@ -162,7 +162,11 @@ plausible theory and proving it against the wrong environment or surface:
    out), puts the mechanically-repairable part in the same PR as an idempotent
    migration tested against locally-constructed broken data, and hands over
    what no script can recover instead of guessing at it.
-6. **Ship** — commits to `fix/<slug>`, runs `make preflight` once, then hands
+6. **Re-assess the risk, if the fix outgrew the bug** — a cause is often not
+   where the symptom was, so the fix lands somewhere nobody rated; a data
+   remediation is the migration criterion almost by definition. Skipped for an
+   ordinary fix at the expected layer, and for a bug that was never planned.
+7. **Ship** — commits to `fix/<slug>`, runs `make preflight` once, then hands
    off to `/colormath:ship` with a PR body carrying the report, the repro, the
    cause, why the fix sits at that layer, and the remediation.
 
@@ -293,6 +297,11 @@ can catch:
    would overwrite that it didn't write, then on approval writes **two**
    distinct fields (`plan`, `qa_plan`) rather than folding QA into the plan,
    since a ticket only reads as ready once both are set.
+7. **Assess the risk** — invokes `assess-risk` on every feature and bug, right
+   here, because step 2 has just answered the rubric's own questions with the
+   files open and the plan it wrote is the best input the rubric will ever get.
+   The rating never gates it: a high one is not a reason to revise the plan the
+   user has just approved.
 
 It **never writes `description`** — that is `gather-requirements`' field, and
 the person who scoped the ticket owns it; where the investigation shows the
@@ -360,7 +369,15 @@ started building. Nothing else.
 ## `/colormath:assess-risk` — rate a ticket against the engineering-risk rubric
 
 Takes a ticket key (`/colormath:assess-risk CM-00012`) and answers the one
-question a groomed ticket does not: **how badly can this go wrong?** A ticket
+question a groomed ticket does not: **how badly can this go wrong?**
+
+**Mostly you will not type this one.** `plan-ticket` runs it on every feature and
+bug it plans, `just-do-it` runs it before it builds, and `implement-ticket` and
+`bugfix` re-run it when the work turned out to be a different shape than the plan
+described. Typing it by hand is for a ticket that reached its column by some other
+route, or for a re-read when something changed. Being invoked by a skill changes
+nothing about what it does: it still goes and looks, still writes every criterion,
+and still refuses nothing — including the caller's work. A ticket
 already says what it is, where it is, what it is for and what somebody intends
 to do about it. Two features with identical plans and identical QA plans are
 not identically safe to start, and the moment that bites is the one where a
@@ -451,7 +468,12 @@ ticket the rest of the way. The thinking already happened in
 6. **Execute the QA plan against the running stack** — every item gets an
    observation, `⚠️` when no browser is reachable for a UI item, and a failure is
    fixed and re-run rather than shipped with the document claiming it passed.
-7. **Ship** — `make preflight`, then `/colormath:ship` for PR, gates, review, a
+7. **Re-assess the risk, if the shape of the work changed** — an unplanned
+   migration, a change that reached authorization, blast radius that grew past
+   the module the plan named. Skipped when nothing moved a criterion, because
+   re-rating writes a measurement nobody can delete. Before ship, since ship
+   can auto-merge and a rating corrected afterwards is right too late.
+8. **Ship** — `make preflight`, then `/colormath:ship` for PR, gates, review, a
    second pass over the same QA plan, and the merge decision. Comments the
    outcome back onto the ticket.
 
@@ -490,8 +512,12 @@ need three skills to tell it what it already knows.
 3. **Claim it on the project** — the same move `implement-ticket` makes, into the
    column whose `exit_commands` name `implement-ticket`, before the building
    starts rather than after.
-4. **Build it**, on a branch, in the idiom of the surrounding code.
-5. **QA it**, then **ship** through `/colormath:ship` for PR, gates, review and
+4. **Assess the risk, before building** — the one place the order matters. This
+   path has no groomed plan and no reviewed QA plan behind it, and a ticket
+   arrives here *because* somebody judged it small, which is the judgement the
+   rubric checks. Nothing else would ever rate these tickets.
+5. **Build it**, on a branch, in the idiom of the surrounding code.
+6. **QA it**, then **ship** through `/colormath:ship` for PR, gates, review and
    the merge decision.
 
 A thin description is fine here, which is the whole point — the thinking

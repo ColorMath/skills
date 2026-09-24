@@ -516,8 +516,8 @@ skip QA and proceed to ship.
 Follow `/colormath:qa`'s recon discipline for identities and seeded data —
 authorization items need the *wrong* role as well as the right one, and one
 admin account proves nothing about access control. **Leave the stack running**
-when you finish QA. The verification audit (step 8) and ship (step 9) both need
-it. Tear it down only after step 9 completes, or if you abort and return the
+when you finish QA. The verification audit (step 8) and ship (step 10) both need
+it. Tear it down only after step 10 completes, or if you abort and return the
 ticket.
 
 ### Tool selection
@@ -732,7 +732,43 @@ The subagent reports directly to the human, not to the main agent.
   finding in its own words.
 - **"I'll handle it"** — the human takes responsibility. Stop and report.
 
-## 9. Ship it
+## 9. Re-assess the risk, if the shape of the work changed
+
+`plan-ticket` already rated this ticket, against the plan it wrote. **Re-run
+`/colormath:assess-risk` with the ticket key when the build made that rating
+wrong**, and skip it when it did not.
+
+The audit in step 8 has just told you which it is, and the ledger
+(`.colormath/sdd/<ticket-key>/progress.md`) has the rulings in writing — so this
+is a reading of evidence you already hold, not a fresh judgement. Re-assess when
+the diff moved one of the rubric's own questions:
+
+- a **migration** appeared that the plan did not name, or one it named turned out
+  to need a backfill;
+- the change reached **authorization, tenancy scoping, sessions or MCP scopes**
+  when the plan did not say it would;
+- **blast radius** grew — the edit landed in a shared service or a path every
+  request takes, rather than the one module the plan named;
+- it became materially **harder to undo** than the plan implied;
+- a new **external dependency** went in.
+
+Skip it for anything that did not move a criterion: a renamed helper, an extra
+test, a step done in a different order, a deviation you recorded and the audit
+passed. **Re-rating for its own sake is not free and not neutral** — every run
+writes a `skill_invoked` row that nobody can delete, and `assess-risk` reads a
+ticket assessed three times as one whose risk nobody could agree on. Say in your
+report which way you decided and why.
+
+**Before ship, not after.** Ship can auto-merge, and a rating corrected after the
+merge is archaeology: it is right, and it is right too late for the person who
+would have wanted it. This is also the last moment the ledger still exists —
+step 10 deletes it.
+
+`assess-risk` rewrites every criterion it is asked about, not only the ones that
+moved, and the old text stays in the audit trail. That is its business, not
+yours: hand it the key and let it decide.
+
+## 10. Ship it
 
 The ticket has been sitting in the right column since step 2, which is what
 `ship` needs: it moves the ticket on from *this* column, and a ticket still in
@@ -754,7 +790,8 @@ Give ship a title naming the change in the ticket's own terms, and a body that
 carries what a reviewer cannot reconstruct: **the ticket key and what it asked
 for**, **where the plan held and where it did not**, **the QA plan's results
 including anything unverified**, the **audit findings** (both blocks-ship
-outcomes and note findings, verbatim), and any deviation you made and why.
+outcomes and note findings, verbatim), **whether step 9 re-assessed the risk
+and what moved**, and any deviation you made and why.
 
 When ship comes back, `add_comment` on the ticket with the outcome — the PR
 link, whether it merged or is held, the deviations, the `branchFindings`
@@ -773,9 +810,9 @@ directories are not yours to touch.
 
 **Tear down the stack** after ship completes (or after you abort and return
 the ticket). The stack was brought up in step 7 and kept running through
-steps 8 and 9. It is yours to stop.
+steps 8 to 10. It is yours to stop.
 
-## 10. Record that you ran
+## 11. Record that you ran
 
 Abacus cannot see this happen. Nothing outside your own run knows a skill
 started, so a run you do not record did not happen as far as the ticket is

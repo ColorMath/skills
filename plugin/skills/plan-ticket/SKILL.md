@@ -2,7 +2,7 @@
 name: plan-ticket
 description: Turn a ticket whose requirements are settled into one somebody could start on Monday — read it, investigate the code it touches at file-and-line level, settle the few implementation forks the requirements left open, then write back a file-anchored implementation plan and an executable QA plan. Use this whenever someone wants a ticket planned, made ready, starred, estimated, or "taken from a description to something I can pick up" — or names a ticket key (CM-00001) and asks how it would be built. Not for establishing what is being asked for (that's /colormath:gather-requirements), not for finding unknown problems in a feature (that's /colormath:qa), and not for implementing it — the planned ticket is the deliverable.
 argument-hint: [ticket key, e.g. CM-00001 — or enough of the title to find it]
-allowed-tools: Agent Bash Read Grep Glob AskUserQuestion mcp__abacus__get_ticket mcp__abacus__record_metric mcp__abacus__update_ticket mcp__abacus__add_comment mcp__abacus__get_project mcp__abacus__move_ticket mcp__abacus__list_projects mcp__abacus__list_tickets
+allowed-tools: Agent Bash Read Grep Glob Skill AskUserQuestion mcp__abacus__get_ticket mcp__abacus__record_metric mcp__abacus__update_ticket mcp__abacus__add_comment mcp__abacus__get_project mcp__abacus__move_ticket mcp__abacus__list_projects mcp__abacus__list_tickets
 ---
 
 Plan the ticket named in "$ARGUMENTS" until someone else could pick it up cold
@@ -369,7 +369,43 @@ rejected approach, the reasoning behind an ordering constraint — `add_comment`
 is the right home for it, since the plan should read as the current intent
 rather than its history.
 
-## 7. Move it to the column that names this skill
+## 7. Assess the risk
+
+Invoke `/colormath:assess-risk` with the ticket key. Then let it do its job: do
+not pre-rate the criteria yourself and do not summarise the rubric for it.
+
+**This is the cheapest moment in the whole process to run it, and that is why it
+lives here.** The rubric asks about blast radius, migrations and authorization
+surface — exactly the questions step 2 just spent most of this run answering,
+with the files open. Run it an hour later from a cold start and somebody pays
+for that reading twice. The ticket has also never been a better input than it is
+now: `assess-risk` calls the plan *"the closest thing to the diff that does not
+exist yet"*, and you have just written one.
+
+**Only for a `feature` or a `bug`.** A task carries no diff and an initiative is
+the wrong altitude, so `assess-risk` declines both at its own step 1 — but you
+read `type` back in step 1, so do not make it refuse you. Skip the invocation
+and say why in your report.
+
+**It never gates you.** The rating is advisory and nothing is refused over one,
+and that holds for you as much as for anybody: a high rating is not a reason to
+revise the plan you just wrote, withdraw it, or recommend holding the work. If
+the assessment turns up something the plan genuinely got wrong, that is a
+finding for your report and a reason for a person to re-run this skill — not a
+licence to edit the plan after the user approved it.
+
+**A run that skips this has not finished.** The temptation is real, because by
+here the plan is written and the interesting work is behind you. But a rubric
+that runs only when somebody remembers is the problem this step exists to fix:
+the Risk card has been offering `assess-risk` from every ticket page all along,
+and that is precisely why so few tickets carry ratings.
+
+If `assess-risk` stops because the Abacus it is connected to offers no risk
+ratings — an older deployment with no `set_ticket_risk` tool — that is a real
+answer, not a failure to work around. Say so in your report and carry on; the
+plan is written either way.
+
+## 8. Move it to the column that names this skill
 
 The plan is written, so the ticket has moved on and the project should say so.
 
@@ -416,11 +452,12 @@ over.
 
 Finish by telling the user, in chat: the ticket key, that it is now ready, which
 column it is in now, what you verified against the code versus assumed, the open
-questions that survived, and that `/colormath:implement-ticket` (or
-`/colormath:bugfix`, for a bug) is what takes it from here. Nothing here can
-delete a ticket — say so plainly if you're asked to.
+questions that survived, **how it rated and which rating step 7 was least sure
+of**, and that `/colormath:implement-ticket` (or `/colormath:bugfix`, for a bug)
+is what takes it from here. Nothing here can delete a ticket — say so plainly if
+you're asked to.
 
-## 8. Record that you ran
+## 9. Record that you ran
 
 Abacus cannot see this happen. Nothing outside your own run knows a skill
 started, so a run you do not record did not happen as far as the ticket is
