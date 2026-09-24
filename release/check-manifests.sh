@@ -3,9 +3,10 @@
 # The manifests parse, and they describe what is on disk.
 #
 # Claude Code fails *quietly* on a malformed manifest: the plugin does not
-# appear, with no error anyone downstream would see. Combined with this repo
-# tracking its default branch rather than a tag, that means a bad merge is live
-# for every install on its next auto-update. Hence a check rather than trust.
+# appear, with no error anyone downstream would see. An install does not move
+# until a version is cut, so a bad merge does not reach anybody on its own — but
+# it does get published the moment somebody cuts, and `cut.sh` runs no manifest
+# check of its own. Hence a check on every PR rather than trust.
 #
 # Deliberately not a schema validator. It asserts the handful of things that
 # have actually broken or could break silently, and says why for each.

@@ -8,10 +8,11 @@
 # of the sixteen tags published under the old six-step checklist are internally
 # inconsistent for exactly that reason.
 #
-# Here the stakes are lower and the discipline is kept anyway. Nothing resolves
-# this version to fetch anything — Claude Code tracks the default branch, so the
-# release is really the merge, and the version is the label a person reads in
-# `/plugin` and looks up in the changelog. Atomicity is what keeps that label
+# Here nothing resolves this version to fetch anything, but it is still what
+# ships: `claude plugin update` compares version numbers, so an install moves
+# when this script bumps one and not when a PR merged. The version is both the
+# gate and the label a person reads in `/plugin` and looks up in the changelog —
+# which is why the discipline is kept. Atomicity is what keeps that label
 # honest: the stamps and the tag land in a single `git push --atomic`, so git
 # updates both refs or neither and there is no window in which main advertises a
 # tag that does not exist. If someone else pushed to main in the meantime, the
@@ -186,5 +187,12 @@ step "Publishing the GitHub Release"
 echo
 echo "Released $version."
 echo
-echo "Nothing to roll out: every install already has this content — it shipped"
-echo "when the commits merged. See LIFECYCLE.md."
+echo "This is the moment it ships. An install moves when the version number"
+echo "changes, so nothing was running these changes until now."
+echo
+echo "To pick it up locally — once per scope, and a restart is required:"
+echo "  claude plugin marketplace update colormath"
+echo "  claude plugin update colormath@colormath"
+echo "  claude plugin update colormath@colormath --scope user"
+echo
+echo "See LIFECYCLE.md."

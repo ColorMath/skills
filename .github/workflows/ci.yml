@@ -6,10 +6,10 @@ name: CI
 #
 # That makes the checks below more load-bearing than they look, not less.
 # Consumers do NOT pin this repo: `.claude/settings.json` names the marketplace
-# and Claude Code tracks the default branch, so **merging to main ships to every
-# install on its next auto-update**. A malformed plugin.json reaches everyone
-# before anyone cuts a release. These two jobs are the only thing between a bad
-# merge and that.
+# and no ref. An install moves when the version number changes, so a bad merge
+# does not reach anybody by itself — but **`cut.sh` validates nothing**, so the
+# next release publishes whatever is on main. These jobs run on the PR because
+# that is the last point where a malformed plugin.json is still cheap.
 
 on:
   pull_request:
