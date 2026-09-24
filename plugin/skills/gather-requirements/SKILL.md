@@ -2,7 +2,7 @@
 name: gather-requirements
 description: Establish what a ticket or an initiative actually asks for — read it, investigate the code and the architecture it lands in, interview the person who filed it until the picture is complete, then write back a description that stands on its own, and for an initiative, feature definitions someone could pick up. Use this whenever someone wants a ticket or initiative fleshed out, scoped, designed, "made real", or checked before work starts — or names a key and asks what it would actually take. Stops at the requirements: implementation and QA plans belong to /colormath:plan-ticket, and this is the layer above.
 argument-hint: [ticket or initiative key, e.g. CM-00001 — or enough of the title to find it]
-allowed-tools: Bash Read Grep Glob AskUserQuestion mcp__abacus__get_ticket mcp__abacus__record_metric mcp__abacus__update_ticket mcp__abacus__add_comment mcp__abacus__add_feature mcp__abacus__update_feature mcp__abacus__move_feature mcp__abacus__get_project mcp__abacus__move_ticket mcp__abacus__list_projects mcp__abacus__list_tickets mcp__abacus__list_members
+allowed-tools: Bash Read Grep Glob Skill AskUserQuestion mcp__abacus__get_ticket mcp__abacus__record_metric mcp__abacus__update_ticket mcp__abacus__add_comment mcp__abacus__add_feature mcp__abacus__update_feature mcp__abacus__move_feature mcp__abacus__get_project mcp__abacus__move_ticket mcp__abacus__list_projects mcp__abacus__list_tickets mcp__abacus__list_members
 ---
 
 Establish what the work named in "$ARGUMENTS" actually asks for, until someone
@@ -326,7 +326,36 @@ what happens next:
 
 Nothing here can delete a ticket — say so plainly if you're asked to.
 
-## 7. Record that you ran
+## 7. Re-assess the risk, but only if it was already assessed
+
+**The normal case is to skip this step, and that is deliberate.** A freshly
+gathered ticket has no plan yet, and `assess-risk` calls the plan *"the closest
+thing to the diff that does not exist yet"* — so rating a ticket here would be
+rating the thinnest version of it that will ever exist, minutes before
+`/colormath:plan-ticket` writes the plan and assesses it properly. Two ratings,
+the first one worse, and a `skill_invoked` row for each that nobody can delete.
+
+**Run it in exactly one case: the ticket already carries ratings and you changed
+what the work is.** `get_ticket` returned them under `risk` back in step 1. If
+they are there, somebody has already gone and looked at the code and written down
+what they found — and you have just rewritten the description underneath them. A
+rating that describes a scope the ticket no longer has is worse than no rating,
+because it reads as current.
+
+So: ratings present **and** the change was substantive — the scope grew, an
+approach changed, a constraint went in or came out — then invoke
+`/colormath:assess-risk` with the ticket key. Ratings present and you only
+sharpened the wording, tightened acceptance criteria or fixed a stale module
+name: skip it, and say so.
+
+**Only for a `feature` or a `bug`.** A task and an initiative are both declined
+by `assess-risk` at its own step 1, and neither can carry the plans the rubric
+wants to read. An initiative's risk lives in the tickets cut from it.
+
+It never gates you: the description is written either way, and nothing about a
+rating is a reason to reopen requirements you have just settled with the user.
+
+## 8. Record that you ran
 
 Abacus cannot see this happen. Nothing outside your own run knows a skill
 started, so a run you do not record did not happen as far as the ticket is

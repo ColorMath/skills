@@ -158,6 +158,22 @@ is what keeps its questions from repeating.
 and the full plan. All three run normally. Do not suppress them — the user
 approves each ticket's direction as it goes.
 
+**It also assesses each ticket's risk, and you inherit that — one assessment per
+child.** `plan-ticket` invokes `/colormath:assess-risk` at its step 7, so a
+six-feature initiative comes out of this skill with six assessed tickets. That is
+the right number: each child has its own blast radius, its own migration, its own
+authorization surface, and there is no single rating that would be true of all of
+them. It is also the main reason a long initiative takes a while here, so say so
+when you show the run in step 2 rather than letting it surprise anybody.
+
+**Add no assessment of your own.** Do not invoke `assess-risk` on the initiative
+— it declines an initiative at its own step 1, because rating a container rates
+nothing — and do not re-run it on a child `plan-ticket` has just rated. Carry the
+levels forward in your notes the way you carry decisions and reuse findings: a
+child rated high on `blast_radius` is worth mentioning in the context you inject
+into the next ticket, since it usually means they share the code that earned the
+rating.
+
 **If it hands one back as ungathered**, that is a real answer, not a failure to
 work around. Record the ticket as unfinished with that reason, tell the user it
 needs `/colormath:gather-requirements`, and carry on down the list — the rest
