@@ -6,18 +6,38 @@ It is deliberately short, and it is short because of one fact that separates
 this repo from [ColorMath/ci](https://github.com/ColorMath/ci), which the
 skills were extracted from:
 
-> **Nothing pins this repo.** A consumer's `.claude/settings.json` names the
-> marketplace and nothing else — no ref, no tag, no version. Claude Code tracks
-> the default branch and auto-updates.
+> **Nobody pins a ref.** A consumer's `.claude/settings.json` names the
+> marketplace and nothing else — no ref, no tag, no version.
 
-So **the merge is the release**. By the time you cut a version, every install
-already has the content; the next `/plugin` update just relabels it. Everything
-below follows from that.
+That much is true, and it is why there is no bump PR and nothing to coordinate.
+But it does **not** mean a merge reaches anybody, and this document used to say
+it did. Measured on 2026-09-24, after a skills change merged to `main` with no
+version stamped:
 
-Compare ColorMath/ci, where a release is a contract: consumers pin exact tags,
-an upgrade arrives as a dedicated PR, and a MAJOR is defined by what can break
-without the consumer editing anything. None of that machinery applies here, and
-importing it would be theatre.
+- `claude plugin update colormath@colormath` answered *"already at the latest
+  version"* and changed nothing. **It compares version strings.**
+- `claude plugin marketplace update colormath` moved the marketplace clone to
+  the merge commit, and the plugin update **still** reported no change.
+- `installed_plugins.json` pins every install to a `gitCommitSha`, and it stayed
+  on the previous release's commit.
+- There is no `--force`.
+
+Cutting the version moved it, and nothing else did.
+
+So **the release is the release.** An install sits on the version it last
+resolved, and the version number is what lets it move — which makes cutting one
+the only way a skills change reaches an agent. A change merged and left under
+`## Unreleased` is a change nobody is running.
+
+(What was not measured: whether Claude Code auto-updates installs of its own
+accord on restart. If it does, it is still gated on the version, because a
+marketplace sitting on the merge commit was not enough. Either way the rule
+above holds.)
+
+Compare ColorMath/ci, where a release is a contract: consumers pin exact tags
+and an upgrade arrives as a dedicated PR. That machinery does not apply here —
+there is nothing on the consumer side to edit, and no bump PR to open. What
+carries over is the part that matters: **until you cut, nothing has shipped.**
 
 ## Versioning
 
@@ -28,10 +48,11 @@ than a tidy `v1.0.0`: `/plugin` had been reporting 4.x on every install for
 months, and restarting the numbers would have looked like a downgrade to every
 one of them.
 
-The version is a **label, not a resolvable ref**. Nobody fetches `v4.2.0`; they
-read it in `/plugin` and look it up in `CHANGELOG.md` to find out what changed
-under them. That is the whole job, and it is why the numbers still have to mean
-something:
+The version is **not a resolvable ref, and not only a label either**. Nobody
+fetches `v4.2.0` — but the number is what `claude plugin update` compares, so it
+is the gate an install passes through as well as the thing somebody reads in
+`/plugin` and looks up in `CHANGELOG.md`. Two jobs, which is why the numbers have
+to mean something:
 
 - **MAJOR** — a skill is removed or renamed, or one changes what it does
   enough that a person's muscle memory is now wrong. `/colormath:ship` no
@@ -39,29 +60,40 @@ something:
 - **MINOR** — a new skill, or a new step or capability in an existing one.
 - **PATCH** — wording, ordering, a corrected instruction, a fixed reference.
 
-There is no deprecation window and no opt-in period, because there is no
-version for anyone to sit on: the change is live on merge. If a skill's
-behaviour needs to change in a way people should be warned about, the warning
-goes in the skill's own output, not in a release channel.
+There is no deprecation window and no opt-in period — not because a change is
+live on merge, but because nobody can pin an old version to sit on: the only
+choice an install has is the current one or the one it already had. So a MAJOR
+arrives whole, the moment somebody updates. If a skill's behaviour needs to
+change in a way people should be warned about, the warning goes in the skill's
+own output, not in a release channel.
 
 ## Releasing
 
-1. Land the change on `main` via PR. **This is the moment it ships** — write
-   the changelog entry under `## Unreleased` in the same PR, while you still
-   remember why. Never stamp a version by hand.
+1. Land the change on `main` via PR — write the changelog entry under
+   `## Unreleased` in the same PR, while you still remember why. Never stamp a
+   version by hand. **This is not yet the moment it ships:** `main` is where the
+   change is true, and no install is running it.
 2. Cut it: run the **Release** workflow with the version, or locally
    `./release/cut.sh vX.Y.Z` (`--dry-run` first to see the diff). That stamps
    `plugin/.claude-plugin/plugin.json`, dates the changelog section, commits,
    creates an annotated tag, pushes both atomically, and publishes the GitHub
    Release.
 
-There is no step 3. No canary, no consumer bump PRs, no soak — the release did
-not move any code to anybody.
+3. Update where you want it: `claude plugin marketplace update colormath`, then
+   `claude plugin update colormath@colormath` — **once per scope**, since
+   `--scope user` is separate from an auto-detected project scope. Every update
+   prints *"Restart to apply changes"* and means it; a running session keeps the
+   skills it started with.
 
-Cut a release when the accumulated changelog is worth a person reading, not on
-a schedule. A batch of merges under one version is fine and normal; what is not
-fine is `main` sitting for weeks with an `## Unreleased` section long enough
-that nobody can tell which entry describes the behaviour they are looking at.
+No canary, no consumer bump PRs, no soak: there is nothing on the consumer side
+to edit and no pin to move. Step 3 is a local refresh, not a rollout.
+
+Cut a release when the accumulated changelog is worth a person reading — **or as
+soon as a change needs to take effect**, which is the common case and the one
+this repo used to get wrong. A batch of merges under one version is fine and
+normal; what is not fine is `main` sitting for weeks with an `## Unreleased`
+section, because everything in it is work nobody is running and every entry is
+indistinguishable from a change that already landed.
 
 ### The invariant
 
@@ -99,9 +131,10 @@ the publish step if the tag landed but the GitHub Release did not.
 version: cut the next one and edit the bad Release's body to lead with
 **WITHDRAWN — use vX.Y.Z+1**. That costs one integer and stays honest.
 
-A bad *skill* is a different emergency, and a faster one — it is already live.
-Fix it and merge; the fix propagates on the next auto-update without anyone
-cutting anything. The release afterwards is bookkeeping.
+A bad *skill* is a different emergency, and the fix is **not** just a merge: an
+install stays on the version it resolved, so a fix left under `## Unreleased`
+reaches nobody. Fix it, merge it, and cut immediately — a PATCH exists for this.
+The release is the remedy, not the bookkeeping.
 
 Tags at and below `v4.1.0` were cut in ColorMath/ci and are not reachable from
 this repo's history at all — the extraction is a fresh single commit. Their

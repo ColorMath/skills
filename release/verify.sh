@@ -13,8 +13,9 @@
 # comes from, the stamps were how the repo fetched its own gate scripts at a
 # consumer's pin, and a stamp naming a tag that did not exist 404'd every
 # consumer's `make preflight`. Nothing in this repo resolves a version to fetch
-# anything: Claude Code tracks the default branch, so the content ships on
-# merge and the version is a label a person reads in `/plugin`.
+# anything — but the version is not merely decorative either: `claude plugin
+# update` compares it, so it is the gate an install passes through as well as the
+# label a person reads in `/plugin`.
 #
 # That leaves one load-bearing half — **the stamp equals the newest reachable
 # tag, and that tag exists**. It is what makes the label answerable: a version

@@ -35,11 +35,13 @@ Or have a repo offer it to everyone who opens it, via `.claude/settings.json`:
 is unchanged, so every `/colormath:<skill>` command keeps working and
 `enabledPlugins` stays as it is.
 
-**There is no version to pin, and that is deliberate.** Claude Code tracks this
-repo's default branch, so a merge here reaches every install on its next
-auto-update. The version in `/plugin` is a label you can look up in
-[CHANGELOG.md](CHANGELOG.md), not something anyone resolves to fetch. See
-[LIFECYCLE.md](LIFECYCLE.md).
+**There is no version to pin, and that is deliberate** — but there is a version
+to *cut*. Nothing on your side names a ref, so there is no bump PR to open and
+nothing to coordinate. What does not follow, and what this README used to claim,
+is that merging is enough: `claude plugin update` compares version numbers, so an
+install sits where it is until a release is cut. Update with `claude plugin
+marketplace update colormath` then `claude plugin update colormath@colormath`,
+once per scope, and restart. See [LIFECYCLE.md](LIFECYCLE.md).
 
 ## The skills
 

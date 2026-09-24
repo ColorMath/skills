@@ -3,9 +3,11 @@
 All notable changes to the colormath skills. Versioning per
 [LIFECYCLE.md](LIFECYCLE.md): one SemVer stream, continuing the one these skills
 were released under in [ColorMath/ci](https://github.com/ColorMath/ci) up to
-`v4.1.0`. **Nothing pins this repo** — Claude Code tracks the default branch, so
-the merge is the release and the version is the label you read in `/plugin` and
-look up here.
+`v4.1.0`. **Nobody pins a ref here** — a consumer's settings name the
+marketplace and nothing else — but the version is still what ships: `claude
+plugin update` compares version numbers, so an install moves when a release is
+cut and not when a PR merges. It is both the gate and the label you read in
+`/plugin` and look up here.
 
 Changes land under `## Unreleased`; `release/cut.sh` renames that heading to the
 version being cut and opens a fresh one. The date on a section is the date the
@@ -17,6 +19,41 @@ Entries for `v4.1.0` and earlier are in
 which still covers the gates. This repo's history begins at the extraction.
 
 ## Unreleased
+
+### Fixed
+
+- **`LIFECYCLE.md` said "the merge is the release". It is not, and the docs now
+  say what was measured.** The premise — nobody pins a ref, so Claude Code tracks
+  the default branch and auto-updates — was half right: nothing on the consumer
+  side names a ref, which is why there is no bump PR. But it does not follow that
+  a merge reaches anybody. Measured after v5.6.0's change merged with no version
+  stamped: `claude plugin update` answered *"already at the latest version"* and
+  changed nothing, because it compares **version strings**; `claude plugin
+  marketplace update` moved the marketplace clone to the merge commit and the
+  plugin update *still* reported no change; `installed_plugins.json` pins every
+  install to a `gitCommitSha` and it did not move; and there is no `--force`.
+  Cutting the version moved it, and nothing else did.
+
+  So a change merged and left under `## Unreleased` is a change **nobody is
+  running**. Corrected in `LIFECYCLE.md` (the premise, the versioning section's
+  "label, not a ref", the deprecation-window reasoning, and §Releasing — which
+  gains a step 3 for the local refresh, once per scope, and notes that a restart
+  is required), in `README.md`, in `CHANGELOG.md`'s own header, and in the
+  explanatory comments in `release/cut.sh`, `release/verify.sh`,
+  `release/check-manifests.sh` and `.github/workflows/ci.yml`.
+
+  Two consequences that were wrong in a way that mattered, not just imprecise:
+  - `cut.sh` printed *"Nothing to roll out: every install already has this
+    content — it shipped when the commits merged."* It now says the opposite, and
+    prints the two update commands and the restart requirement.
+  - LIFECYCLE said a bad skill is *"already live"* and that merging a fix
+    *"propagates on the next auto-update without anyone cutting anything"*. That
+    is the most expensive sentence in the file: it describes the remedy for an
+    emergency, and the remedy did not work. Fixing a bad skill requires cutting.
+
+  A `v5.5.0`-era changelog entry repeats the old claim and is deliberately left
+  alone — a released section is the body of a published GitHub Release, and
+  rewriting it would rewrite the record.
 
 ## v5.6.0 — 2026-09-24
 
