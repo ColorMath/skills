@@ -18,6 +18,8 @@ which still covers the gates. This repo's history begins at the extraction.
 
 ## Unreleased
 
+## v5.6.0 — 2026-09-24
+
 ### Added
 
 - **The skills now run `assess-risk` themselves.** It was a skill nobody was
